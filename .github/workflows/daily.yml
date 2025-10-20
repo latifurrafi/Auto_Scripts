@@ -1,25 +1,36 @@
-name: Daily Commit
+name: Daily AI Code Generator
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # runs every day at 5 AM UTC
-  workflow_dispatch:
+    - cron: '0 2 * * *'   # Runs every day at 2 AM UTC
+  workflow_dispatch:        # Allow manual runs too
 
 jobs:
-  build:
+  generate:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run update script
-        run: |
-          python3 update.py
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Commit changes
+      - name: Install dependencies
         run: |
-          git config user.name "GitHub Bot"
-          git config user.email "actions@github.com"
+          pip install google-generativeai python-dotenv
+
+      - name: Run AI Code Generator
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python generate_code.py
+
+      - name: Commit and push generated code
+        run: |
+          git config user.name "AI Code Bot"
+          git config user.email "bot@github.com"
           git add .
-          git commit -m "Daily commit $(date)" || echo "No changes to commit"
+          git commit -m "🤖code $(date '+%Y-%m-%d')" || echo "No new changes to commit"
           git push
