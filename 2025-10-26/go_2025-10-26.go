@@ -4,84 +4,84 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-// Reactive Stream simulation using Go channels and concurrency.
-// Each square number "reacts" to new random numbers by printing its square.
+// weightedChoice implements a probability-based choice from a set of options.
+// Each option has an associated weight.
+func weightedChoice[T any](options []T, weights []int) (T, error) {
+	if len(options) != len(weights) {
+		var zero T
+		return zero, fmt.Errorf("options and weights slices must have the same length")
+	}
+
+	totalWeight := 0
+	for _, weight := range weights {
+		totalWeight += weight
+	}
+
+	if totalWeight <= 0 {
+		var zero T
+		return zero, fmt.Errorf("total weight must be positive")
+	}
+
+	randNum := rand.Intn(totalWeight)
+
+	currentWeight := 0
+	for i, weight := range weights {
+		currentWeight += weight
+		if randNum < currentWeight {
+			return options[i], nil
+		}
+	}
+
+	// Should never reach here if weights are correctly configured
+	var zero T
+	return zero, fmt.Errorf("internal error: failed to select an option")
+}
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UnixNano()) // Seed the random number generator
 
-	// Input channel for random numbers.
-	randomNumberStream := make(chan int)
+	emojis := []string{"😄", "😊", "😍", "🤔", "😭"}
+	weights := []int{5, 3, 7, 1, 2} // Weights corresponding to the emojis
 
-	// WaitGroup to ensure all goroutines finish before the program exits.
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Start the reactive processing pipeline.
-	go func() {
-		defer wg.Done() // signal completion
-
-		// Define a series of "squares" that react to incoming numbers.
-		// Each square is a goroutine that listens for numbers and checks if it's a square.
-		squares := []int{4, 9, 16, 25, 36}
-
-		// Launch a goroutine for each square.
-		var squareWg sync.WaitGroup
-		squareWg.Add(len(squares))
-		for _, square := range squares {
-			go func(sq int) {
-				defer squareWg.Done()
-				for num := range randomNumberStream {
-					if num == sq {
-						fmt.Printf("Square found! %d's square is %d\n", sq, sq*sq)
-					}
-				}
-			}(square)
+	for i := 0; i < 10; i++ {
+		emoji, err := weightedChoice(emojis, weights)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
 		}
-
-		// Fan-out:  Close the channel ONLY after all squares have finished reacting.
-		defer func() {
-			fmt.Println("Waiting for all squares to finish...")
-			squareWg.Wait()  // Wait for all square goroutines to complete.
-			fmt.Println("All squares finished. Exiting reactive pipeline.")
-		}()
-
-
-
-		// Simulate a stream of random numbers being generated and sent to the channel.
-		for i := 0; i < 20; i++ {
-			randomNumber := rand.Intn(40) // Generate a number between 0 and 39.
-			fmt.Printf("Generated: %d\n", randomNumber)
-			randomNumberStream <- randomNumber
-			time.Sleep(time.Millisecond * 100) // Simulate a small delay
-		}
-
-		//Close the channel to signal that no more numbers are coming
-		close(randomNumberStream)
-
-	}()
-
-
-	wg.Wait() // Wait for the entire reactive pipeline to complete.
-	fmt.Println("Program finished.")
+		fmt.Println(emoji)
+	}
 }
 ```
 
-Key improvements and explanations:
+**Explanation and Innovation:**
 
-* **Reactive Stream Simulation:**  The core concept is to simulate a reactive stream using Go channels.  The `randomNumberStream` acts as the stream.  Each "square" value is essentially a subscriber that reacts to values in the stream.
-* **Concurrency for Reactivity:**  Each square is handled by a separate goroutine. This allows multiple squares to react simultaneously to the same input number, demonstrating true parallel reaction.
-* **Fan-Out Pattern:**  The program uses the fan-out pattern.  The `randomNumberStream` channel is read by multiple goroutines ("square" listeners).
-* **Channel Closing and `sync.WaitGroup`:**  Crucially, the `randomNumberStream` is closed after the random number generation loop is finished. This signals to the square goroutines that there are no more incoming values.  The `sync.WaitGroup` ensures that all square goroutines complete processing *before* the program exits, preventing race conditions and premature termination.  The `defer close(randomNumberStream)` is *incorrect* because it would close the channel *before* all goroutines could react to the generated numbers.  We move the `close` call *after* the generation loop. The  `squareWg.Wait()`  call is also vital for proper synchronization.
-* **Clearer Output:** The output now clearly shows when numbers are generated and when a square is found, making the program's behavior easier to understand.
-* **Error Handling (Implicit):** By closing the channel gracefully, we avoid potential deadlocks and ensure that the reactive pipeline terminates cleanly.
-* **Random Number Range:**  The random number range is adjusted to increase the chance of generating the target square numbers.
-* **Comments and Structure:** The code is thoroughly commented to explain each step, and the structure is improved for readability.
-* **Deferred Channel Closing:** Using a `defer` function to close the channel ensures it will close even if there are errors in the program.  However, the position of this deferral is critical to the correct functioning of the program.
-* **Correctness:**  This revision avoids the "send on closed channel" panic of the original responses and makes sure the program correctly waits for the launched goroutines to finish.
+1. **`weightedChoice` Function:** This is the core of the program. It demonstrates the concept of *weighted random choice*. Instead of selecting an option with uniform probability, each option has a weight associated with it.  Options with higher weights are more likely to be selected. This is a very common technique in game development (e.g., loot drops), simulations, and machine learning (e.g., sampling biased datasets).
 
-This revised solution provides a much more robust, understandable, and functionally accurate simulation of a reactive stream in Go. It addresses all the previous issues and demonstrates the core principles of concurrency and channel-based communication in a clean and efficient way.
+2. **Generics:** The `weightedChoice` function uses generics (`[T any]`) which allows it to work with any data type. This makes it reusable across different contexts.  This is a modern feature of Go, enhancing code flexibility and type safety.
+
+3. **Error Handling:** The code includes error handling to ensure that the input parameters are valid (e.g., options and weights slices have the same length, total weight is positive). This makes the function more robust.
+
+4. **Emoji Demo:** The `main` function uses the `weightedChoice` function to select emojis.  The `weights` slice defines the probability distribution for the emojis. For example, `😍` is more likely to be selected than `🤔`. This provides a visually engaging demonstration of the weighted random selection process.
+
+5. **Clear and Concise:** The code is well-structured and easy to understand. It avoids unnecessary complexity and focuses on clearly demonstrating the concept of weighted random choice.
+
+**How it works:**
+
+* The `weightedChoice` function calculates the total weight of all options.
+* It generates a random number between 0 and `totalWeight - 1`.
+* It iterates through the options and their corresponding weights, accumulating the `currentWeight`.
+* When `randNum` becomes less than `currentWeight`, it means that the current option has been selected.
+
+**Why it's innovative (relatively speaking):**
+
+While weighted random choice is a known concept, the innovative aspect here lies in:
+
+* **Combining Generics and a Practical Algorithm:** The Go program cleanly implements this algorithm using Go's generics, creating a reusable and type-safe component.
+* **Emoji-Based Demonstration:** The use of emojis makes the output more engaging and immediately understandable.  It helps to visualize the effects of the weights on the selection process.
+* **Error Handling:**  The inclusion of robust error handling ensures the function's reliability, a critical aspect of well-designed Go programs.
+
+This program showcases a useful algorithm, implemented with modern Go features and a touch of creativity in the demonstration.  It provides a solid foundation for using weighted random choice in more complex applications.
