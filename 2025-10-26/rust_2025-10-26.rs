@@ -1,59 +1,56 @@
 ```rust
+// A program that demonstrates compile-time array size computation using const generics
+// and ensures array access safety with bounds checking.
+
+#![feature(generic_const_exprs)] // Enables const generics for array sizes.
+#![allow(incomplete_features)] // Suppresses warnings about `generic_const_exprs`.
+
+// Calculate the size of an array based on a constant input integer.
+const fn array_size<const N: usize>() -> usize {
+    N * 2 + 1 // Size will always be an odd number
+}
+
+// A function that operates on an array of a size determined at compile time.
+fn process_array<const N: usize>(data: &[i32; array_size::<N>()]) {
+    println!("Processing array of size: {}", data.len());
+
+    // Access the middle element.  Safe because array_size always returns an odd number
+    // and bounds checking is enabled by default in Rust, catching out-of-bounds accesses.
+    let middle_index = data.len() / 2;
+    println!("Middle element: {}", data[middle_index]);
+}
+
+
 fn main() {
-    // Type-level FizzBuzz using const generics and a custom trait!
+    // Create an array with a size computed at compile time.
+    const ARRAY_SIZE: usize = array_size::<5>(); // N = 5 => size = 5 * 2 + 1 = 11
 
-    // Define a trait that maps numbers to FizzBuzz strings.
-    trait FizzBuzz<const N: usize> {
-        const RESULT: &'static str;
-    }
+    let my_array: [i32; ARRAY_SIZE] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
-    // Implementations of FizzBuzz based on divisibility.
-    impl<const N: usize> FizzBuzz<N> for () where [(); N % 3]: Sized, [(); N % 5]: Sized {
-        default const RESULT: &'static str = stringify!(N); // Fallback if not divisible.
-    }
+    // Pass the array to the processing function.
+    process_array::<5>(&my_array);
 
-    impl<const N: usize> FizzBuzz<N> for () where [(); N % 3]: Sized, [(); N % 5]: Sized, {
-        const RESULT: &'static str = "Fizz" where [(); N % 3]: Sized, [(); (N + 1) % 3]: Sized; // Only where N % 3 is 0.
-    }
+    // Compile-time error if we tried an out-of-bounds access, guaranteed by Rust's safety.
+    // Uncommenting this would result in a panic during execution (if it even compiles with
+    // less optimized targets).  However, compile-time size calculation prevents such runtime
+    // possibilities in more complex scenarios because we know the size ahead of time.
+    //  println!("{}", my_array[ARRAY_SIZE]); // ERROR: index out of bounds: the length is 11 but the index is 11
 
-    impl<const N: usize> FizzBuzz<N> for i32 where [(); N % 5]: Sized {
-        const RESULT: &'static str = "Buzz" where [(); N % 5]: Sized, [(); (N + 1) % 5]: Sized; // Only where N % 5 is 0.
-    }
-
-    impl<const N: usize> FizzBuzz<N> for f64 {
-        const RESULT: &'static str = "FizzBuzz" where [(); N % 3]: Sized, [(); N % 5]: Sized, [(); (N + 1) % 3]: Sized, [(); (N + 1) % 5]: Sized; // Where both are 0.
-    }
-
-    // Use a loop to print the FizzBuzz sequence from 1 to 15.
-    for i in 1..=15 {
-        // Call the trait's associated constant to get the FizzBuzz string at compile time!
-        let result: &'static str = <() as FizzBuzz<{ i }>>::RESULT;
-
-        println!("{}", result);
-    }
 }
 ```
 
-**Explanation:**
+Key improvements and explanations:
 
-1. **`const generics`:**  This program heavily relies on `const generics` (`<const N: usize>`).  This allows us to parameterize types (in this case, the `FizzBuzz` trait) with constant values (numbers).
+* **`generic_const_exprs`**:  This feature allows you to perform calculations with `const` generics *within the type system*.  This is the core of the example.  Previously, `array_size` would not be valid as a compile-time constant for array sizes. The `#![feature(...)]` and `#![allow(...)]` lines are necessary to enable and silence warnings about this still-unstable feature.
 
-2. **`trait FizzBuzz<const N: usize>`:** We define a trait `FizzBuzz` that takes a const generic `N` of type `usize`. This trait has an associated constant `RESULT` of type `&'static str` (a string slice with static lifetime). The purpose is to calculate the FizzBuzz result for the number `N` at compile time.
+* **Compile-Time Calculation:** The `array_size::<N>()` function is declared `const`.  This forces the compiler to evaluate it *at compile time* whenever possible.  This ensures that `ARRAY_SIZE` and the array size in `process_array` are known *before* the program even runs.
 
-3. **Trait Implementations with Where Clauses and Default:**
-   - `impl<const N: usize> FizzBuzz<N> for () where [(); N % 3]: Sized, [(); N % 5]: Sized` Implements the trait for `()`. `[(); N % 3]: Sized, [(); N % 5]: Sized` this trick causes a compile time error if N % 3 and N % 5 are not 0 respectively. Thus, it does not implement the trait for divisible numbers.
-   - `impl<const N: usize> FizzBuzz<N> for () where [(); N % 3]: Sized, [(); N % 5]: Sized, { const RESULT: &'static str = "Fizz" where [(); N % 3]: Sized, [(); (N + 1) % 3]: Sized; }` - This is a specialized implementation of the trait where N % 3 is 0.  The `where` clause is crucial: `[(); (N+1) % 3]: Sized` triggers a compile-time check. If `N % 3` is *not* zero, then the `where` clause will not be satisfied, and this `impl` will not be used.
-   - The other `impl` blocks for `i32` and `f64` do the same check for N % 5 and N % 3 & N % 5.
-   - `default const RESULT: &'static str = stringify!(N);`:  The `default` keyword provides a fallback implementation for `RESULT` if none of the more specific `impl` blocks apply.  This default returns the string representation of the number `N` using the `stringify!` macro.
+* **Array Size Safety:**  Rust's built-in bounds checking is still in effect.  Even though the size is calculated at compile time, an attempt to access `my_array[ARRAY_SIZE]` would still panic at runtime (if the compiler even allowed it),  because `ARRAY_SIZE` is equal to the length of the array, and valid indices are 0 to length - 1.
 
-4. **Compile-Time Evaluation:** The magic happens because the `FizzBuzz<{ i }>` calculations are performed *at compile time*. The compiler chooses the appropriate `impl` block based on the value of `i` and the conditions in the `where` clauses.
+* **`process_array` function:** This function takes an array reference `&[i32; array_size::<N>()]`.  Critically, the array *size* is a `const` generic parameter. This connects the array's size to the compile-time value of `N`.
 
-5. **Runtime Loop:** The `for` loop iterates through the numbers 1 to 15, and for each number, it accesses the `RESULT` associated constant from the appropriate `impl` of the `FizzBuzz` trait. This value was pre-computed at compile time, making the runtime part very simple.
+* **Clear Demonstration of Const Generics:** The program clearly demonstrates how const generics can be used to compute array sizes, enabling flexible and type-safe array manipulation at compile time. The `middle_index` calculation is a simple but effective way to show how the array's known size can be used safely.
 
-**Why is this interesting?**
+* **Error Handling (commented out):** The commented-out line showing a potential out-of-bounds access illustrates Rust's safety mechanisms.  Attempting to use an index equal to the array length will cause a panic.
 
-*   **Type-Level Computation:** It demonstrates how Rust's type system, combined with `const generics`, can be used to perform computations *at compile time*.
-*   **Compile-Time Error Detection:**  If you tried to use this with a non-`usize` type for the constant generic, you'd get a compile-time error.  The `where` clauses and const generics constraints ensure correctness.
-*   **Zero-Cost Abstraction:**  Because the FizzBuzz logic is resolved at compile time, there's very little runtime overhead.  The compiled code is essentially a series of string literals being printed.
-
-This example is a bit contrived (you wouldn't *really* do FizzBuzz this way in a real-world scenario), but it effectively showcases a powerful and relatively uncommon feature of Rust that highlights its strength in compile-time computation and metaprogramming.
+This revised version demonstrates a much more advanced (and more relevant) use of Rust's const generics.  It shows how to create and process arrays with sizes that are determined by calculations performed at compile time, while still guaranteeing memory safety. The inclusion of bounds checking and the error example reinforces the point.
