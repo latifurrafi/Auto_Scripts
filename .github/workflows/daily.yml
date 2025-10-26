@@ -2,35 +2,74 @@ name: Daily AI Code Generator
 
 on:
   schedule:
-    - cron: '0 5 * * *'   # Runs every day at 2 AM UTC
+    - cron: '32 22 * * *'    # Runs every day at 10:00 PM UTC (6:00 PM EST)
   workflow_dispatch:        # Allow manual runs too
+  push:
+    branches: [ main ]      # Also run on pushes to main branch
 
 jobs:
   generate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
+      - name: Debug Info
+        run: |
+          echo "Current time: $(date)"
+          echo "UTC time: $(date -u)"
+          echo "Workflow triggered by: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref_name }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
-          pip install google-generativeai python-dotenv
+          pip install -r requirements.txt
 
       - name: Run AI Code Generator
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python generate_code.py
+        run: |
+          echo "Checking API key availability..."
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "❌ GEMINI_API_KEY is not set!"
+            exit 1
+          else
+            echo "✅ GEMINI_API_KEY is available"
+          fi
+          
+          echo "Running code generator..."
+          python generate_code.py
 
       - name: Commit and push generated code
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "Setting up git configuration..."
           git config user.name "latifurrafi"
           git config user.email "latifurrafi@gmail.com"
+          
+          echo "Checking for changes..."
           git add .
-          git commit -m "🤖code $(date '+%Y-%m-%d')" || echo "No new changes to commit"
-          git push
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            echo "Changes detected, committing..."
+            git commit -m "🤖code $(date '+%Y-%m-%d')"
+            
+            echo "Pushing changes..."
+            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+            echo "✅ Changes pushed successfully"
+          fi

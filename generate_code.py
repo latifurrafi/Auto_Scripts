@@ -9,7 +9,7 @@ load_dotenv()
 # Get API key
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    raise ValueError("Missing GEMINI_API_KEY in .env file")
+    raise ValueError("Missing GEMINI_API_KEY environment variable. Please set it in GitHub secrets or .env file")
 
 # Configure Gemini
 genai.configure(api_key=api_key)
