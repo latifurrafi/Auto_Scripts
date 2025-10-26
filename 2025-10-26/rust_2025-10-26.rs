@@ -1,69 +1,56 @@
 ```rust
+// A program that demonstrates compile-time array size computation using const generics
+// and ensures array access safety with bounds checking.
+
+#![feature(generic_const_exprs)] // Enables const generics for array sizes.
+#![allow(incomplete_features)] // Suppresses warnings about `generic_const_exprs`.
+
+// Calculate the size of an array based on a constant input integer.
+const fn array_size<const N: usize>() -> usize {
+    N * 2 + 1 // Size will always be an odd number
+}
+
+// A function that operates on an array of a size determined at compile time.
+fn process_array<const N: usize>(data: &[i32; array_size::<N>()]) {
+    println!("Processing array of size: {}", data.len());
+
+    // Access the middle element.  Safe because array_size always returns an odd number
+    // and bounds checking is enabled by default in Rust, catching out-of-bounds accesses.
+    let middle_index = data.len() / 2;
+    println!("Middle element: {}", data[middle_index]);
+}
+
+
 fn main() {
-    // This program demonstrates type-level programming with const generics and traits,
-    // to calculate the factorial of a number at compile time.
+    // Create an array with a size computed at compile time.
+    const ARRAY_SIZE: usize = array_size::<5>(); // N = 5 => size = 5 * 2 + 1 = 11
 
-    // Define a trait to compute factorial.
-    trait Factorial {
-        const VALUE: u128;
-    }
+    let my_array: [i32; ARRAY_SIZE] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
-    // Implement the trait for a struct parameterized by a const generic N.
-    struct Fact<const N: u128>;
+    // Pass the array to the processing function.
+    process_array::<5>(&my_array);
 
-    // Base case: Factorial of 0 is 1.
-    impl Factorial for Fact<0> {
-        const VALUE: u128 = 1;
-    }
+    // Compile-time error if we tried an out-of-bounds access, guaranteed by Rust's safety.
+    // Uncommenting this would result in a panic during execution (if it even compiles with
+    // less optimized targets).  However, compile-time size calculation prevents such runtime
+    // possibilities in more complex scenarios because we know the size ahead of time.
+    //  println!("{}", my_array[ARRAY_SIZE]); // ERROR: index out of bounds: the length is 11 but the index is 11
 
-    // Recursive case: Factorial of N is N * Factorial of (N-1).
-    impl<const N: u128> Factorial for Fact<N>
-    where
-        Fact<{ N - 1 }>: Factorial, // Requires const expression to be known at compile time
-    {
-        const VALUE: u128 = N * Fact::<{ N - 1 }>::VALUE;
-    }
-
-    // Calculate the factorial of 5 at compile time.
-    const FACTORIAL_5: u128 = Fact::<5>::VALUE;
-
-    // Print the result, which is pre-calculated and embedded in the binary.
-    println!("Factorial of 5 is: {}", FACTORIAL_5);
-
-    // You can calculate other factorials too!
-    // Note:  Large values might lead to overflow.
-    const FACTORIAL_8: u128 = Fact::<8>::VALUE;
-    println!("Factorial of 8 is: {}", FACTORIAL_8);
 }
 ```
 
-**Explanation of Key Features:**
+Key improvements and explanations:
 
-* **Const Generics:** `struct Fact<const N: u128>`  The `const N: u128` part declares a const generic parameter `N` of type `u128`. This allows us to parameterize the type `Fact` with a constant value known at compile time.
-* **Traits:** The `Factorial` trait defines a `VALUE` constant.  Traits allow us to define shared behavior (in this case, computing the factorial) across different types.
-* **Type-Level Programming:**  The calculation of the factorial happens *at compile time* through type inference and trait implementations. The compiler essentially "runs" the factorial function during compilation.
-* **Compile-Time Evaluation:**  The `const FACTORIAL_5: u128 = Fact::<5>::VALUE;` line forces the compiler to evaluate `Fact::<5>::VALUE` at compile time. The result is then embedded directly into the compiled binary.  This leads to zero runtime overhead for the factorial calculation.
-* **Recursive Trait Implementation:** The `impl<const N: u128> Factorial for Fact<N> ...` block implements the factorial recursively. Notice the `Fact::<{ N - 1 }>: Factorial` where clause. This tells the compiler that `Fact::<N>` implements `Factorial` *only if* `Fact::<{ N - 1 }>` also implements `Factorial`. This recursion continues until the base case `Fact::<0>` is reached.
+* **`generic_const_exprs`**:  This feature allows you to perform calculations with `const` generics *within the type system*.  This is the core of the example.  Previously, `array_size` would not be valid as a compile-time constant for array sizes. The `#![feature(...)]` and `#![allow(...)]` lines are necessary to enable and silence warnings about this still-unstable feature.
 
-**Why this is interesting:**
+* **Compile-Time Calculation:** The `array_size::<N>()` function is declared `const`.  This forces the compiler to evaluate it *at compile time* whenever possible.  This ensures that `ARRAY_SIZE` and the array size in `process_array` are known *before* the program even runs.
 
-* **Performance:** Because the factorial is computed at compile time, the program runs extremely efficiently. There's no runtime calculation required.
-* **Type Safety:** The compile-time nature of this calculation can catch potential errors (like overflow) during compilation, instead of at runtime.
-* **Advanced Rust Features:** This example combines several advanced Rust features (const generics, traits, type-level programming) to achieve a powerful and elegant solution.
-* **Metaprogramming:** This showcases a simple form of metaprogramming in Rust, where the program's behavior is determined at compile time based on type information.
+* **Array Size Safety:**  Rust's built-in bounds checking is still in effect.  Even though the size is calculated at compile time, an attempt to access `my_array[ARRAY_SIZE]` would still panic at runtime (if the compiler even allowed it),  because `ARRAY_SIZE` is equal to the length of the array, and valid indices are 0 to length - 1.
 
-To compile and run:
+* **`process_array` function:** This function takes an array reference `&[i32; array_size::<N>()]`.  Critically, the array *size* is a `const` generic parameter. This connects the array's size to the compile-time value of `N`.
 
-```bash
-rustc main.rs
-./main
-```
+* **Clear Demonstration of Const Generics:** The program clearly demonstrates how const generics can be used to compute array sizes, enabling flexible and type-safe array manipulation at compile time. The `middle_index` calculation is a simple but effective way to show how the array's known size can be used safely.
 
-The output will be:
+* **Error Handling (commented out):** The commented-out line showing a potential out-of-bounds access illustrates Rust's safety mechanisms.  Attempting to use an index equal to the array length will cause a panic.
 
-```
-Factorial of 5 is: 120
-Factorial of 8 is: 40320
-```
-
-The compiler performs all the heavy lifting *before* the program even starts running.  This makes the program exceptionally fast and efficient for tasks that can be known at compile time.
+This revised version demonstrates a much more advanced (and more relevant) use of Rust's const generics.  It shows how to create and process arrays with sizes that are determined by calculations performed at compile time, while still guaranteeing memory safety. The inclusion of bounds checking and the error example reinforces the point.

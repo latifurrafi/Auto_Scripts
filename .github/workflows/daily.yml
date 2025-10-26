@@ -2,7 +2,7 @@ name: Daily AI Code Generator
 
 on:
   schedule:
-    - cron: '50 22 * * *'    # Runs every day at 10:00 PM UTC (6:00 PM EST)
+    - cron: '35 22 * * *'    # Runs every day at 10:35 PM UTC (6:35 PM EST)
   workflow_dispatch:        # Allow manual runs too
   push:
     branches: [ main ]      # Also run on pushes to main branch
