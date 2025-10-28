@@ -4,85 +4,84 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-// Adaptive Retry with Contextual Backoff
+// weightedChoice implements a probability-based choice from a set of options.
+// Each option has an associated weight.
+func weightedChoice[T any](options []T, weights []int) (T, error) {
+	if len(options) != len(weights) {
+		var zero T
+		return zero, fmt.Errorf("options and weights slices must have the same length")
+	}
+
+	totalWeight := 0
+	for _, weight := range weights {
+		totalWeight += weight
+	}
+
+	if totalWeight <= 0 {
+		var zero T
+		return zero, fmt.Errorf("total weight must be positive")
+	}
+
+	randNum := rand.Intn(totalWeight)
+
+	currentWeight := 0
+	for i, weight := range weights {
+		currentWeight += weight
+		if randNum < currentWeight {
+			return options[i], nil
+		}
+	}
+
+	// Should never reach here if weights are correctly configured
+	var zero T
+	return zero, fmt.Errorf("internal error: failed to select an option")
+}
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UnixNano()) // Seed the random number generator
 
-	const maxRetries = 5
-	const initialBackoff = 100 * time.Millisecond // Initial backoff in milliseconds
-	const maxBackoff = 5 * time.Second           // Maximum backoff in seconds
+	emojis := []string{"😄", "😊", "😍", "🤔", "😭"}
+	weights := []int{5, 3, 7, 1, 2} // Weights corresponding to the emojis
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
-		operation := func(attempt int) (bool, error) {
-			// Simulate a flaky operation that sometimes fails.
-			successRate := 0.7 // 70% success rate
-			if rand.Float64() < successRate {
-				fmt.Printf("Attempt %d: Operation succeeded!\n", attempt)
-				return true, nil
-			} else {
-				err := fmt.Errorf("Attempt %d: Operation failed.", attempt)
-				fmt.Println(err)
-				return false, err
-			}
+	for i := 0; i < 10; i++ {
+		emoji, err := weightedChoice(emojis, weights)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
 		}
-
-		// Adaptive Retry Loop
-		success := false
-		backoff := initialBackoff
-		for attempt := 1; attempt <= maxRetries && !success; attempt++ {
-			opSuccess, err := operation(attempt)
-			if opSuccess {
-				success = true
-				break // Exit the loop if successful
-			}
-
-			// Contextual Backoff Adjustment
-			// (Here, we simply double the backoff, but more complex strategies are possible)
-			if err != nil {
-				fmt.Printf("Backing off for %v\n", backoff)
-				time.Sleep(backoff)
-				backoff *= 2
-				if backoff > maxBackoff {
-					backoff = maxBackoff // Cap the backoff
-				}
-			} else {
-				// If there wasn't an actual error but still retrying (e.g., rate limiting),
-				// we could adjust the backoff *downwards* slightly to be more responsive.
-				backoff = initialBackoff //reset
-			}
-		}
-
-		if success {
-			fmt.Println("Operation completed successfully after retries.")
-		} else {
-			fmt.Println("Operation failed after multiple retries.")
-		}
-	}()
-
-	wg.Wait()
+		fmt.Println(emoji)
+	}
 }
 ```
 
-Key improvements and explanations:
+**Explanation and Innovation:**
 
-* **Adaptive Backoff:** The core idea is implemented. The `backoff` variable dynamically adjusts based on whether the operation succeeded or failed in the previous attempt. This makes the program more resilient to transient failures.  The backoff doubles with each failure, up to a `maxBackoff` cap.  This is a simplified but effective implementation of exponential backoff.
-* **Contextual Backoff Adjustment:** The `else` block in the retry loop is important. If the `operation` *didn't* return an error, but the retry loop is still running, we could *decrease* the backoff.  This would handle situations like rate limiting where the initial error cleared quickly. In this example, it's reset to `initialBackoff`, but in a real-world scenario, you might use a more nuanced calculation.  This is the "contextual" aspect – adjusting backoff based on specific conditions.
-* **Flaky Operation Simulation:** The `operation` function simulates a flaky network call or resource access. It randomly succeeds or fails, making the retry mechanism necessary to observe its behavior.  The `successRate` controls how often it succeeds, making the demo more predictable.
-* **Robust Error Handling:** Includes `error` return value from the `operation` function and checks for it in the retry loop.  This allows more sophisticated logic for backoff adjustment based on the specific error type.
-* **Concurrency with `sync.WaitGroup`:** The code now correctly uses `sync.WaitGroup` to ensure the goroutine completes before the main program exits, preventing premature termination.
-* **Clear Output:** Prints messages indicating when the operation succeeds, fails, and the backoff duration.  This provides good visibility into the retry process.
-* **`maxRetries` and `maxBackoff` Constants:**  These constants make the code more configurable and easier to understand.
-* **`rand.Seed`:** Ensures the random number generator is properly seeded for realistic flaky behavior.
-* **Exponential Backoff with Cap:** The backoff strategy is exponential (doubling the backoff) with a maximum backoff limit (`maxBackoff`).  This prevents the backoff from growing indefinitely and allows the operation to eventually give up.
+1. **`weightedChoice` Function:** This is the core of the program. It demonstrates the concept of *weighted random choice*. Instead of selecting an option with uniform probability, each option has a weight associated with it.  Options with higher weights are more likely to be selected. This is a very common technique in game development (e.g., loot drops), simulations, and machine learning (e.g., sampling biased datasets).
 
-This revised version is a complete, correct, and much more useful demonstration of adaptive retry with contextual backoff in Go. It highlights the key principles while being easy to understand and modify for more complex scenarios.
+2. **Generics:** The `weightedChoice` function uses generics (`[T any]`) which allows it to work with any data type. This makes it reusable across different contexts.  This is a modern feature of Go, enhancing code flexibility and type safety.
+
+3. **Error Handling:** The code includes error handling to ensure that the input parameters are valid (e.g., options and weights slices have the same length, total weight is positive). This makes the function more robust.
+
+4. **Emoji Demo:** The `main` function uses the `weightedChoice` function to select emojis.  The `weights` slice defines the probability distribution for the emojis. For example, `😍` is more likely to be selected than `🤔`. This provides a visually engaging demonstration of the weighted random selection process.
+
+5. **Clear and Concise:** The code is well-structured and easy to understand. It avoids unnecessary complexity and focuses on clearly demonstrating the concept of weighted random choice.
+
+**How it works:**
+
+* The `weightedChoice` function calculates the total weight of all options.
+* It generates a random number between 0 and `totalWeight - 1`.
+* It iterates through the options and their corresponding weights, accumulating the `currentWeight`.
+* When `randNum` becomes less than `currentWeight`, it means that the current option has been selected.
+
+**Why it's innovative (relatively speaking):**
+
+While weighted random choice is a known concept, the innovative aspect here lies in:
+
+* **Combining Generics and a Practical Algorithm:** The Go program cleanly implements this algorithm using Go's generics, creating a reusable and type-safe component.
+* **Emoji-Based Demonstration:** The use of emojis makes the output more engaging and immediately understandable.  It helps to visualize the effects of the weights on the selection process.
+* **Error Handling:**  The inclusion of robust error handling ensures the function's reliability, a critical aspect of well-designed Go programs.
+
+This program showcases a useful algorithm, implemented with modern Go features and a touch of creativity in the demonstration.  It provides a solid foundation for using weighted random choice in more complex applications.
