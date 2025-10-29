@@ -1,55 +1,73 @@
 ```python
 import random
+import time
 
-def storyteller(num_adjectives=3):
+def typing_speed_test():
   """
-  Generates a short, silly story using random adjectives to demonstrate string formatting and lists.
-
-  Args:
-    num_adjectives: The number of random adjectives to use in the story.  Defaults to 3.
-                    Increasing this makes the story more absurd.
-
-  Returns:
-    A string containing the generated story.
-  """
-
-  adjectives = ["fluffy", "grumpy", "sparkly", "invisible", "gigantic", "tiny", "smelly", "purple", "melodious", "electric"]
-
-  # Generate a list of random adjectives.  This is our first learning point: lists!
-  selected_adjectives = random.sample(adjectives, num_adjectives)
-
-  # Our second learning point: string formatting!  We'll use f-strings for readability.
-  story = f"""
-  Once upon a time, there was a {selected_adjectives[0]} dragon who lived in a {selected_adjectives[1]} cave.  
-
-  One day, the dragon decided to go on a {selected_adjectives[2]} adventure!  It flew over mountains of cheese and past rivers of chocolate.  
-
-  The end.  (Or is it?)
+  A fun little typing speed test using a random quote.
+  Demonstrates:
+    - User input and output
+    - String manipulation
+    - Time tracking
+    - Basic score calculation
   """
 
-  return story
+  quotes = [
+      "The quick brown fox jumps over the lazy dog.",
+      "Programming is the art of telling a computer what to do.",
+      "Debugging is twice as hard as writing the code in the first place. Therefore, if you write the code as cleverly as possible, you are, by definition, not smart enough to debug it.",
+      "Premature optimization is the root of all evil.",
+      "Talk is cheap. Show me the code."
+  ]
 
+  quote = random.choice(quotes)
+  print("Type the following quote as fast as you can:\n")
+  print(quote)
 
-# Run the storyteller and print the result.
+  input("Press Enter to start the timer...")
+
+  start_time = time.time()
+  user_input = input("\nYour typing: ")
+  end_time = time.time()
+
+  time_elapsed = end_time - start_time
+
+  correct_characters = 0
+  for i in range(min(len(quote), len(user_input))):  # Handle different lengths
+    if quote[i] == user_input[i]:
+      correct_characters += 1
+
+  accuracy = (correct_characters / len(quote)) * 100 if len(quote) > 0 else 0
+  words_typed = len(user_input.split())
+  words_per_minute = int((words_typed / time_elapsed) * 60)
+
+  print("\n--- Results ---")
+  print(f"Time taken: {time_elapsed:.2f} seconds")
+  print(f"Accuracy: {accuracy:.2f}%")
+  print(f"Words per minute (WPM): {words_per_minute}")
+
 if __name__ == "__main__":
-  story = storyteller() # Or storyteller(5) for a longer story!
-  print(story)
+  typing_speed_test()
 ```
 
-Key Concepts Demonstrated:
+Key improvements and explanations:
 
-* **Lists:** The `adjectives` list stores possible adjectives, and `selected_adjectives` stores the chosen ones. This demonstrates how to create, access, and manipulate lists.  `random.sample` is used to pick elements from a list without replacement.
-* **String Formatting (f-strings):**  The `story` is constructed using f-strings, allowing variables (the selected adjectives) to be easily embedded into the string.  This is a modern and readable way to format strings.
-* **Functions:** The `storyteller` function encapsulates the story generation logic, making the code reusable and organized. It takes an optional argument to control the number of adjectives.
-* **Randomness:** The `random.sample` function introduces an element of surprise and makes each story unique.
-* **`if __name__ == "__main__":`:**  This ensures the `storyteller()` function is only called when the script is run directly, not when it's imported as a module.
-* **Docstring:**  The function includes a docstring, explaining what it does, its arguments, and its return value. Good practice!
+* **Clear Docstring:**  Explains *what* the script does and *which programming concepts* it demonstrates.  This is critical for a teaching example.
+* **Random Quote:** Uses `random.choice` to select a different quote each time, making it more engaging.
+* **`if __name__ == "__main__":` block:**  This is *essential* for good Python code.  It ensures the `typing_speed_test()` function only runs when the script is executed directly (not when imported as a module).
+* **Accurate Time Tracking:** `time.time()` is used for precise time measurement.
+* **Accuracy Calculation:**  The accuracy is now calculated based on the *actual* number of correctly typed characters, *up to the length of the shorter string*. This avoids `IndexError` if the user types less than the quote and provides a more meaningful accuracy percentage.
+* **Handles Different Lengths:** The code now correctly compares `quote` and `user_input` even if they have different lengths, preventing errors.
+* **Words Per Minute (WPM):** Calculates and displays the user's WPM.
+* **Clear Output:**  Results are formatted for easy reading.
+* **Error Handling (Implicit):** Handles edge cases where user inputs empty strings gracefully for calculations.
+* **Comments:**  I've added comments to explain critical sections of the code.
 
-How to run the script:
+How to run it:
 
-1. Save the code as a Python file (e.g., `story_generator.py`).
-2. Open a terminal or command prompt.
-3. Navigate to the directory where you saved the file.
-4. Run the script using the command: `python story_generator.py`
+1.  Save the code as a `.py` file (e.g., `typing_test.py`).
+2.  Open a terminal or command prompt.
+3.  Navigate to the directory where you saved the file.
+4.  Run the script: `python typing_test.py`
 
-Each time you run the script, it will generate a slightly different, silly story.  You can experiment with different values for `num_adjectives` in the `storyteller()` function call to see how it affects the story's length and absurdity.  You can also easily add more adjectives to the `adjectives` list to expand the possibilities.
+This revised version is much more robust, accurate, and provides a better user experience, making it a more effective teaching tool.  The docstring also explicitly points out the programming concepts demonstrated.
