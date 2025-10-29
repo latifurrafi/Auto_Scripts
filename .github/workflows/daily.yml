@@ -2,7 +2,7 @@ name: Daily AI Code Generator
 
 on:
   schedule:
-    - cron: '52 22 * * *'    # Runs every day at 10:35 PM UTC (6:35 PM EST)
+    - cron: '18 02 * * *'    # Runs every day at 10:35 PM UTC (6:35 PM EST)
   workflow_dispatch:        # Allow manual runs too
   push:
     branches: [ main ]      # Also run on pushes to main branch
@@ -69,7 +69,18 @@ jobs:
             echo "Changes detected, committing..."
             git commit -m "🤖code $(date '+%Y-%m-%d')"
             
+            echo "Syncing with remote before push..."
+            git fetch origin main
+            # Rebase local commit(s) on top of latest remote main to avoid non-fast-forward
+            if git rebase origin/main; then
+              echo "Rebase succeeded"
+            else
+              echo "Rebase failed, aborting and attempting pull --rebase"
+              git rebase --abort || true
+              git pull --rebase origin main
+            fi
+
             echo "Pushing changes..."
-            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+            git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
             echo "✅ Changes pushed successfully"
           fi
