@@ -2,7 +2,8 @@ name: Daily AI Code Generator
 
 on:
   schedule:
-    - cron: '18 02 * * *'    # Runs every day at 10:35 PM UTC (6:35 PM EST)
+    - cron: '19 02 * * *'    # Runs every day at 10:35 PM UTC (6:35 PM EST)
+    - cron: '08 02 * * *'    # Runs every day at 10:35 PM UTC (6:35 PM EST)
   workflow_dispatch:        # Allow manual runs too
   push:
     branches: [ main ]      # Also run on pushes to main branch
@@ -67,7 +68,7 @@ jobs:
             echo "No changes to commit"
           else
             echo "Changes detected, committing..."
-            git commit -m "🤖code $(date '+%Y-%m-%d')"
+            git commit -m "code $(date '+%Y-%m-%d')"
             
             echo "Syncing with remote before push..."
             git fetch origin main
