@@ -67,7 +67,7 @@ jobs:
             echo "No changes to commit"
           else
             echo "Changes detected, committing..."
-            git commit -m "🤖code $(date '+%Y-%m-%d')"
+            git commit -m "code $(date '+%Y-%m-%d')"
             
             echo "Pushing changes..."
             git push https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
