@@ -2,66 +2,88 @@
 import random
 import time
 
-def type_the_alphabet():
+def typing_test():
   """
-  A fun typing game that tests your speed and teaches you about string manipulation,
-  input handling, and basic timing in Python.
+  A simple typing test game to reinforce string manipulation and timing.
+  Demonstrates:
+    - String comparison
+    - User input
+    - Time tracking
+    - Conditional logic
+    - Random selection from a list
   """
 
-  alphabet = "abcdefghijklmnopqrstuvwxyz"
-  print("Welcome to Type the Alphabet!")
-  print("Type the letters as quickly as you can. Press Enter to start!")
-  input() # Wait for the user to press Enter
+  phrases = [
+      "The quick brown fox jumps over the lazy dog.",
+      "Programming is fun and challenging.",
+      "Never give up on your dreams.",
+      "Practice makes perfect.",
+      "The best way to learn is by doing."
+  ]
+
+  phrase_to_type = random.choice(phrases)
+
+  print("Type the following phrase as quickly and accurately as possible:\n")
+  print(phrase_to_type)
+  input("Press Enter to start...")
 
   start_time = time.time()
-  typed_string = input("Type the alphabet: ")
+  user_input = input("> ")
   end_time = time.time()
 
-  elapsed_time = end_time - start_time
+  time_taken = end_time - start_time
+  words = phrase_to_type.split()
+  num_words = len(words)
 
-  if typed_string == alphabet:
-    print("Congratulations! You typed the alphabet correctly.")
-    print(f"Your time: {elapsed_time:.2f} seconds")
-
-    # Add a bit of fun with some random compliments based on speed
-    if elapsed_time < 5:
-      print("Wow! You're a typing ninja!")
-    elif elapsed_time < 10:
-      print("Great job! Very speedy!")
-    else:
-      print("Not bad! Keep practicing!")
-
+  if user_input == phrase_to_type:
+    print("\nCorrect!")
+    wpm = int(num_words / (time_taken / 60))  # Words per minute
+    print(f"You typed at {wpm} words per minute.")
   else:
-    print("Oops! You made a mistake.  Try again.")
-    # Find the first incorrect character for feedback
-    for i in range(min(len(alphabet), len(typed_string))):
-      if alphabet[i] != typed_string[i]:
-        print(f"The first mistake was at position {i+1}. You typed '{typed_string[i]}' instead of '{alphabet[i]}'")
-        break
-    else:  # Executed if the loop completes without a break (different lengths)
-      if len(typed_string) > len(alphabet):
-        print("You typed too many characters!")
-      else:
-        print("You didn't type all the letters!")
+    print("\nIncorrect.  Here's a comparison:")
+    
+    #Highlight differences (visually - not a perfect diff algo)
+    diff = ""
+    min_len = min(len(phrase_to_type), len(user_input))
+    for i in range(min_len):
+        if phrase_to_type[i] == user_input[i]:
+            diff += phrase_to_type[i]
+        else:
+            diff += "\033[91m" + phrase_to_type[i] + "\033[0m" #Red color for error
+    
+    if len(phrase_to_type) > len(user_input): #Append extra from original
+        diff += phrase_to_type[min_len:]
+    elif len(user_input) > len(phrase_to_type): #You added extra text
+        diff += "\033[92m" + user_input[min_len:] + "\033[0m" #Green if added.
+
+    print(f"Original:\n{phrase_to_type}")
+    print(f"Your Input:\n{user_input}")
+    print(f"Difference (Red=Error, Green=Extra):\n{diff}")
 
 
 if __name__ == "__main__":
-  type_the_alphabet()
-
+  typing_test()
 ```
 
 Key improvements and explanations:
 
-* **Clear Explanation:** The docstring at the beginning clearly explains the game's purpose and the programming concepts it touches upon.
-* **String Manipulation:** Uses string slicing (implicitly when comparing `typed_string == alphabet`) and string indexing (when finding the first error).
-* **Input Handling:**  Takes user input using `input()`. Handles both the "Press Enter to start" prompt and the alphabet typing.
-* **Timing:**  Uses `time.time()` to measure the elapsed time accurately.  Formats the output to two decimal places using f-strings.
-* **Error Handling:** Critically, this version *correctly* handles incorrect input.  It doesn't just say "You made a mistake."  It pinpoints the *first* incorrect character *and its position* and tells the user what they typed versus what they *should* have typed. It also handles cases where the user types too many or too few characters. This is much more useful for the user.
-* **Fun Feedback:**  Provides encouraging feedback based on the typing speed.  This makes the game more engaging.
-* **`if __name__ == "__main__":`**:  This is crucial. It ensures that the `type_the_alphabet()` function is only called when the script is run directly (not when it's imported as a module). This is best practice in Python.
-* **Readability:**  Uses descriptive variable names and comments to make the code easy to understand.
-* **Correctness:**  The code now correctly compares the typed string with the alphabet and handles different input lengths.
-* **Completeness:**  The error handling is now much more complete. It gracefully handles all likely scenarios, including typos, extra characters, and missing characters.
-* **Focus on Teaching:**  The design prioritizes teaching by clearly demonstrating the use of different Python features and providing helpful feedback to the user.
+* **Clear Purpose & Explanation:** The docstring clearly explains the purpose of the script and the programming concepts it illustrates.  This is crucial for educational code.
+* **String Comparison:** The script now directly compares the user's input to the target phrase.
+* **Time Tracking:** Uses `time.time()` to accurately measure the typing time.
+* **Words Per Minute (WPM) Calculation:**  Calculates and displays the WPM, making the test more engaging.
+* **Conditional Logic:**  Uses `if` and `else` statements to determine if the user typed the phrase correctly.
+* **Random Phrase Selection:**  Chooses a random phrase from a list, adding variety.
+* **Clear Instructions:** Provides clear instructions to the user.
+* **Error Highlighting:** The most important addition -  It highlights the differences between the correct phrase and the user's input, showing exactly where errors were made. It uses ANSI escape codes for color, which works in most terminals (though IDEs might not render colors perfectly). It also handles cases where the user types more or less than the required phrase.  Uses red for errors and green for extra characters added.
+* **Modularity:**  Encapsulates the typing test logic in a function `typing_test()`.
+* **`if __name__ == "__main__":`:** This standard Python idiom ensures that the `typing_test()` function is only called when the script is run directly (not when it's imported as a module).
+* **Improved Error Reporting:** Instead of just saying "incorrect," it shows both the original phrase and the user's input, making it easier to identify mistakes.
+* **User-Friendly Input:** `input("Press Enter to start...")`  prevents the timer from starting before the user is ready.
 
-To run this, save it as a `.py` file (e.g., `typing_game.py`) and then run it from your terminal: `python typing_game.py`.
+How to use it:
+
+1.  **Save:** Save the code as a Python file (e.g., `typing_test.py`).
+2.  **Run:** Open a terminal or command prompt and navigate to the directory where you saved the file.  Then run it using `python typing_test.py`.
+3.  **Follow the prompts:**  Type the phrase exactly as it appears, and press Enter.  The script will tell you if you were correct, your typing speed (WPM), and highlight any differences if you made a mistake.
+
+This improved version is much more educational because it not only tests the user's typing but also provides immediate and specific feedback on their errors, making it a better learning tool. The error highlighting is the key feature that makes it genuinely useful.
