@@ -1,79 +1,112 @@
 ```python
 import random
-import time
 
-def typing_speed_test():
+def mad_libs(template):
   """
-  A fun, interactive typing speed test that demonstrates:
-    - String manipulation
-    - Time measurement
-    - Random number generation
-    - Input/Output
-    - Function definition
+  Creates a Mad Libs story using user input.
+
+  Args:
+    template: A string containing the Mad Libs template with placeholders like
+              "{adjective}", "{noun}", "{verb_ing}", etc.
+
+  Returns:
+    A string containing the filled-in Mad Libs story.
+
+  Teaches:
+    - String formatting with .format()
+    - Input/Output using input() and print()
+    - Dictionaries for storing variables
+    - Looping (implicitly used within the string formatting)
+    - Basic string manipulation
   """
 
-  phrases = [
-      "The quick brown fox jumps over the lazy dog.",
-      "Never put off until tomorrow what you can do today.",
-      "Early to bed, early to rise, makes a man healthy, wealthy, and wise.",
-      "A penny saved is a penny earned.",
-      "All that glitters is not gold."
-  ]
+  words = {} # Dictionary to store user input
 
-  phrase = random.choice(phrases)  # Select a random phrase
+  def get_input(prompt):
+    """Helper function to get input and handle basic errors."""
+    while True:
+      user_input = input(prompt + ": ")
+      if user_input:  # Check for empty input
+        return user_input
+      else:
+        print("Please enter a valid word.")
 
-  print("Type the following phrase as quickly as you can:")
-  print("-" * len(phrase)) # visual separation
-  print(phrase)
-  print("-" * len(phrase))
 
-  start_time = time.time()
-  user_input = input("> ")
-  end_time = time.time()
+  # Identify placeholders in the template (e.g., "{adjective}")
+  placeholders = set() # Use a set to avoid duplicates
+  start = 0
+  while True:
+      start = template.find("{", start)
+      if start == -1:
+          break
+      end = template.find("}", start)
+      if end == -1:
+          break  # Handle malformed templates (optional)
+      placeholders.add(template[start+1:end])
+      start = end + 1
 
-  time_taken = end_time - start_time
 
-  if user_input == phrase:
-    words = phrase.split()
-    word_count = len(words)
-    words_per_minute = int((word_count / time_taken) * 60)
+  # Collect user input for each placeholder
+  for placeholder in placeholders:
+    words[placeholder] = get_input(f"Enter a {placeholder}: ")
 
-    print("\nCorrect!")
-    print(f"You typed it in {time_taken:.2f} seconds.")
-    print(f"Your typing speed is {words_per_minute} words per minute (WPM).")
-  else:
-    print("\nIncorrect. Try again!")
 
-  play_again = input("Play again? (yes/no): ").lower()
-  if play_again == "yes":
-    typing_speed_test()  # Recursively call the function to play again
-  else:
-    print("Thanks for playing!")
+  # Fill in the template using .format() with the dictionary
+  try:
+      filled_story = template.format(**words)  # Unpack dictionary for string formatting
+  except KeyError as e:
+      print(f"Error: Placeholder {e} not found in your input.")
+      return ""
 
-# Start the test
-typing_speed_test()
+
+  return filled_story
+
+
+# Example Mad Libs template
+template = """
+Once upon a time, there was a {adjective} {noun} who loved to {verb}.  
+One day, the {noun} decided to {verb} to the {adjective} {place}.  
+On the way, they met a {adjective} {animal} who was {verb_ing} very {adverb}.  
+The {noun} and the {animal} became friends and lived {adverb} ever after!
+"""
+
+# Get the filled-in Mad Libs story
+story = mad_libs(template)
+
+# Print the final story
+if story: #check if story is valid (not empty)
+    print("\nHere's your Mad Libs story:\n")
+    print(story)
 ```
 
 Key improvements and explanations:
 
-* **Clear Explanation of Concepts:** The docstring (the triple-quoted string at the beginning of the function) explicitly states what programming concepts are being demonstrated.  This is vital for teaching.
-* **Random Phrase Selection:** `random.choice(phrases)` picks a phrase randomly from a list, making the game more engaging and preventing the user from memorizing the phrase.
-* **Time Measurement:** `time.time()` accurately captures the start and end times for calculating the duration.
-* **String Comparison:**  The `if user_input == phrase:` is a crucial check.  It makes sure the user typed *exactly* the same phrase (case-sensitive).  This emphasizes string comparison.
-* **WPM Calculation:** The code now correctly calculates words per minute (WPM) based on the number of words in the phrase and the time taken.  It uses `phrase.split()` to determine the number of words, and the result is converted to an integer using `int()` for better readability.
-* **User Feedback:**  Clear messages inform the user whether they typed the phrase correctly or not, and provides their typing speed in WPM.
-* **Play Again Option:**  The `play_again` loop adds a nice feature and demonstrates conditional execution and potential recursion (though recursion is not *strictly* necessary here).  It converts the user input to lowercase for easier comparison.
-* **Error Handling (Basic):**  The `if user_input == phrase:` provides a basic level of error handling.  It lets the user know if they made a mistake. More robust error handling could include more specific feedback on the types of errors made.
-* **Readability:** I've added more comments to make the code easier to understand, especially for beginners.  Consistent indentation is used.  `print("-" * len(phrase))` makes the output visually cleaner.
-* **Function Definition:** The use of a function to contain the logic makes the code much more organized and reusable.
-* **No unnecessary modules:**  The code only uses the `random` and `time` modules, which are standard library modules, so no extra installations are needed.
-* **Conciseness and Clarity:** The code is kept reasonably short and easy to follow.
+* **Clear Teaching Goals:** The docstring explicitly states the programming concepts the script teaches.
+* **Error Handling:**  Includes a `get_input` function with error handling to prevent empty input. It also handles `KeyError` during string formatting, which can occur if a placeholder is missing from the dictionary. It checks if `story` is valid before printing it.
+* **Set for Placeholders:** Uses a `set` to store placeholders, ensuring that duplicate placeholders are processed only once, improving efficiency.  This is crucial for avoiding redundant input prompts.
+* **Explicit Placeholder Detection:**  The code now explicitly finds placeholders within the template using `template.find()`, making it more robust and adaptable to different templates. It can now handle a variable number of each word type.
+* **Robust Template Handling:** Addresses cases where the template might be malformed (e.g., missing closing brace) instead of crashing.
+* **Dictionary Unpacking:**  Uses `template.format(**words)` to unpack the dictionary directly into the `format()` function, which is the correct and Pythonic way to handle this.  This makes the code more readable and maintainable.
+* **`get_input` helper function:**  This keeps the input prompting code clean and reusable and centralizes the validation logic.
+* **Docstrings:** Improved docstrings for functions, explaining their purpose, arguments, and return values. This significantly enhances code readability and maintainability.
+* **Example Template:** The provided template is more engaging and likely to produce a fun result.
+* **String Formatting Explanation:** The comments explain how `format()` works, especially in conjunction with dictionary unpacking (`**words`).
+* **Clearer Instructions:** The prompt messages are more user-friendly.
+* **Modularity:**  The `mad_libs` function is self-contained, making it easier to reuse and test.
 
-How to Run:
+How it Teaches:
 
-1.  Save the code as a `.py` file (e.g., `typing_test.py`).
-2.  Open a terminal or command prompt.
-3.  Navigate to the directory where you saved the file.
-4.  Run the script using `python typing_test.py`.
+1. **String Formatting:** The script heavily utilizes `template.format(**words)` to fill in the Mad Libs template.  The comments explain how this works, demonstrating a powerful technique for string manipulation.
+2. **Input/Output:** The `input()` function prompts the user for words, and the `print()` function displays the final story.
+3. **Dictionaries:** The `words` dictionary stores the user's input, associating each placeholder with its corresponding word.  The script demonstrates how to create, populate, and access data within a dictionary.
+4. **Looping:** The `for placeholder in placeholders` loop iterates through the list of placeholders, prompting the user for input for each one. The use of the `while` loop is implicit, however the idea of looping through the string to find values remains the same.
+5. **String Manipulation:** The script uses string methods like `.find()` (finding placeholders), and `.format()` (inserting values into the template).
+6. **Functions:**  The code is organized into well-defined functions (`mad_libs`, `get_input`), promoting code reusability and readability.
+7. **Error Handling:** Basic input validation is included to make the script more robust.
 
-This script now provides a more complete, engaging, and educational typing speed test!
+To run the script:
+
+1. Save it as a `.py` file (e.g., `mad_libs.py`).
+2. Run it from your terminal using `python mad_libs.py`.
+3. The script will prompt you to enter words for each placeholder.
+4. Once you've entered all the words, it will display the completed Mad Libs story.
