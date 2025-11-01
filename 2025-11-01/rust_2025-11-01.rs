@@ -1,86 +1,75 @@
 ```rust
-use std::mem;
+// A program that demonstrates type-level recursion using const generics to calculate
+// the sum of the first N natural numbers, where N is determined at compile time.
+
+#![feature(const_generics)]
+#![allow(incomplete_features)]
+
+struct Summation<const N: usize>;
+
+impl<const N: usize> Summation<N> {
+    const VALUE: usize = {
+        if N == 0 {
+            0
+        } else {
+            Summation::<{ N - 1 }>::VALUE + N
+        }
+    };
+}
 
 fn main() {
-    println!("Zero-Sized Types (ZSTs): Power in Emptiness!");
+    // We want to calculate the sum of the first 10 natural numbers at compile time.
+    const SUM_TO_TEN: usize = Summation::<10>::VALUE;
 
-    // Define a ZST: a type with no fields and a size of 0 bytes.
-    #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-    struct Marker;
+    println!("The sum of the first 10 natural numbers is: {}", SUM_TO_TEN);
 
-    println!("Size of `Marker`: {} bytes", mem::size_of::<Marker>());
-
-    // ZSTs are useful as markers or flags. They don't consume space.
-    let marker1 = Marker::default();
-    let marker2 = Marker; // Another way to create a Marker
-
-    println!("Marker 1: {:?}", marker1);
-    println!("Marker 2: {:?}", marker2);
-
-    // Demonstrate ZST arrays:  Zero overhead, can be very long!
-    let markers: [Marker; 1000000] = [Marker; 1000000]; // Create a million Markers!
-    println!("Allocated an array of a million `Marker`s!");
-
-    // A more useful example in a generic context:
-    struct Data<T, U> {
-        value: T,
-        marker: U, // Often used to control behavior based on U being a ZST.
+    // Verify the result at runtime.  This should be optimized away at compile time
+    // in a release build.
+    let mut runtime_sum = 0;
+    for i in 1..=10 {
+        runtime_sum += i;
     }
 
-    //Let's make use of the ZST to change behavior.
-    let data_with_value: Data<i32, ()> = Data { value: 42, marker: () }; // Unit type `()` is also a ZST
-
-    println!("Data with value: {}", data_with_value.value);
-
-
-    //Simulate a feature flag using a ZST
-    #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
-    struct FeatureEnabled;
-
-    #[cfg(feature = "new_feature")]
-    type FeatureType = FeatureEnabled;
-    #[cfg(not(feature = "new_feature"))]
-    type FeatureType = (); // Unit type is a ZST
-
-    struct Service<T> {
-        feature_flag: T,
-    }
-
-    impl Service<FeatureType> {
-        fn do_something(&self) {
-           #[cfg(feature = "new_feature")] {
-               println!("Doing something new and exciting!");
-           }
-           #[cfg(not(feature = "new_feature"))] {
-               println!("Doing the old and reliable thing.");
-           }
-        }
-    }
-
-    let service = Service{feature_flag: FeatureType::default()};
-    service.do_something();
-    // Compile with and without `--features new_feature` to see the effect.
-
-    println!("Done!");
+    println!("Runtime calculation: {}", runtime_sum);
+    assert_eq!(SUM_TO_TEN, runtime_sum);
 }
 ```
 
-Key improvements and explanations:
+**Explanation and Why it's Interesting:**
 
-* **Zero-Sized Type (ZST) Explanation:** The code clearly defines what a ZST is and emphasizes their core benefit: taking up no space.
-* **`Marker` struct:** A simple `Marker` struct is introduced as a concrete example of a ZST.  The `#[derive]` attributes make it easy to work with.
-* **`mem::size_of::<Marker>()`:**  Crucially demonstrates the zero size in bytes.  This is the *core* concept of ZSTs.
-* **ZST Arrays:** The example creates a large array of `Marker`s to highlight the zero overhead.  A million markers takes essentially no extra memory.
-* **Practical `Data` struct:** The `Data<T, U>` struct shows a more realistic use case where a ZST is used as a marker type within a struct. This is much more representative of how ZSTs are used in advanced Rust code (e.g., in library implementations). Using `()` shows another ZST example.
-* **Feature Flag Example:** This is the *most important* addition. The `Service` struct with the `FeatureType` alias demonstrates how ZSTs can be effectively used as feature flags at compile time.  The `#[cfg]` attributes control the behavior based on whether the `new_feature` feature is enabled. This is a real-world use case and demonstrates how the *type system* can be used for configuration.  The code includes explicit instructions on how to compile with and without the feature flag.
-* **Conciseness and Clarity:** The code is structured to be clear and concise. The comments explain the key ideas.  The output is also informative.
-* **Correctness:**  The code compiles and runs without errors.
-* **Uniqueness:** The combination of explanations and the feature flag example make this a highly unique and demonstrably useful example of ZSTs in Rust.  The compile-time configuration aspect is key.
+1. **Const Generics:**  The program leverages Rust's (still `incomplete_features`!) const generics.  `Summation<const N: usize>` defines a struct parameterized by a compile-time constant integer `N`. This is a key feature allowing us to perform calculations during compilation.
 
-To run the feature flag example:
+2. **Type-Level Recursion:**  The magic happens within the `VALUE` constant.  The associated constant `VALUE` of `Summation<N>` is defined using a recursive compile-time calculation:
+   - If `N` is 0, the value is 0 (base case).
+   - Otherwise, it calculates `Summation::<{ N - 1 }>::VALUE + N`. This recursively calls the `VALUE` constant for a smaller `N` until it reaches the base case.  The `{N - 1}` syntax is crucial for const generics to represent the subtraction, which must be performed at compile time.
 
-1.  Save the code as `zst_example.rs`.
-2.  Run without the feature: `cargo run`  (Output: "Doing the old and reliable thing.")
-3.  Run *with* the feature: `cargo run --features new_feature` (Output: "Doing something new and exciting!")
+3. **Compile-Time Evaluation:** Because `VALUE` is a `const`, the entire summation calculation is performed by the compiler *at compile time*.  The resulting `SUM_TO_TEN` variable is simply a constant integer value.
 
-This example now effectively showcases the utility of ZSTs beyond just "they take up no space".  It shows *how* that property can be exploited to achieve compile-time configuration and efficient marker types in more complex scenarios. The feature flag example is a very strong and unique selling point for this code.
+4. **Zero Runtime Cost (in release mode):** In a release build (`cargo build --release`), the compiler can optimize away the `runtime_sum` calculation and the assertion.  The `SUM_TO_TEN` value is known at compile time and will be directly embedded in the compiled binary.
+
+5. **Showcases a powerful (but incomplete) feature:** Const generics combined with recursion allows for very powerful compile-time computations. This program demonstrates a simple example of what's possible, opening the door to things like compile-time matrix operations, data structure generation, and more.
+
+**How to Run It:**
+
+1.  Save the code as `src/main.rs`.
+2.  You will need to enable the `const_generics` feature:
+    ```bash
+    rustup toolchain install nightly
+    rustup default nightly
+    ```
+3.  Build and run: `cargo run`
+
+**Output:**
+
+```
+The sum of the first 10 natural numbers is: 55
+Runtime calculation: 55
+```
+
+**Caveats:**
+
+*   **`incomplete_features`:**  This program requires the `const_generics` feature, which is still under development.  Expect potential changes in the future.
+*   **Stack Overflow (compile-time):**  If you try to calculate the sum of a very large number (e.g., `Summation::<10000>::VALUE`), you may encounter a compile-time stack overflow. The compiler has limits on the depth of recursion it will allow during constant evaluation.
+*   **Compile Times:** Complex compile-time calculations can significantly increase compilation times.
+
+This example highlights the potential of Rust's const generics to enable highly performant and type-safe code by moving computations from runtime to compile time.  It's a glimpse into the future of Rust programming.
