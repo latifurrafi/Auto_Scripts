@@ -1,89 +1,65 @@
 ```python
 import random
-import time
 
-def typing_speed_test():
-  """
-  A fun typing speed test that reinforces the concept of string manipulation,
-  conditional statements, and loops.  It also introduces the 'time' module.
-  """
+def password_generator(length=12, include_symbols=True):
+    """
+    Generates a random password of a specified length, with optional symbols.
 
-  phrases = [
-      "The quick brown fox jumps over the lazy dog.",
-      "Programming is fun and challenging.",
-      "Practice makes perfect.",
-      "Never give up on your dreams.",
-      "The future belongs to those who believe in the beauty of their dreams."
-  ]
+    This script demonstrates:
+    - List comprehensions
+    - Random number generation
+    - String manipulation
+    - Default argument values
 
-  phrase = random.choice(phrases)
-  print("Type this phrase as quickly and accurately as you can:\n")
-  print(phrase)
-  input("Press Enter when you are ready to start!")
+    Args:
+        length (int):  The desired length of the password. Defaults to 12.
+        include_symbols (bool):  Whether to include symbols in the password. Defaults to True.
 
-  start_time = time.time()
-  user_input = input("\nStart typing: ")
-  end_time = time.time()
+    Returns:
+        str: A randomly generated password.
+    """
 
-  time_elapsed = end_time - start_time
-  words_typed = len(user_input.split())
-  words_per_minute = int((words_typed / time_elapsed) * 60)
+    lowercase_letters = [chr(i) for i in range(ord('a'), ord('z') + 1)]  # List comprehension
+    uppercase_letters = [chr(i) for i in range(ord('A'), ord('Z') + 1)]
+    numbers = [chr(i) for i in range(ord('0'), ord('9') + 1)]
+    symbols = ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "-", "=", "<", ">", "?", "/", "~"]
 
-  # Check for accuracy
-  correct_characters = 0
-  for i in range(min(len(phrase), len(user_input))):
-    if phrase[i] == user_input[i]:
-      correct_characters += 1
+    characters = lowercase_letters + uppercase_letters + numbers
+    if include_symbols:
+        characters += symbols
 
-  accuracy = (correct_characters / len(phrase)) * 100
-  accuracy = round(accuracy, 2) # Round to 2 decimal places
+    password = ''.join(random.choice(characters) for _ in range(length)) # Another list comprehension!
 
-  print("\n--- Results ---")
-  print(f"Time elapsed: {time_elapsed:.2f} seconds")
-  print(f"Words per minute (WPM): {words_per_minute}")
-  print(f"Accuracy: {accuracy}%")
-
-  if user_input == phrase:
-    print("\nPerfect match! Amazing!")
-  elif accuracy > 90:
-    print("\nGreat job! You're very accurate.")
-  else:
-    print("\nKeep practicing to improve your speed and accuracy!")
+    return password
 
 
 if __name__ == "__main__":
-  typing_speed_test()
+    password = password_generator()
+    print("Your randomly generated password is:", password)
+
+    # Example usage with different parameters:
+    short_password = password_generator(length=8, include_symbols=False)
+    print("A shorter, symbol-free password:", short_password)
+
+    longer_password = password_generator(length=20, include_symbols=True)
+    print("A longer password with symbols:", longer_password)
+
+    print("\nTip:  Longer passwords with symbols are generally more secure!")
 ```
 
-**How it works and the programming concepts it teaches:**
+Key improvements and explanations:
 
-1. **`import random` and `import time`:** Demonstrates how to import modules for pre-built functionality. `random` is used to select a random phrase, and `time` is used to measure how long the user takes to type.
+* **Clear Docstring:**  The docstring now clearly explains what the script *does*, what programming concepts it demonstrates, and the arguments/return value of the function.  This is crucial for educational purposes.
+* **`if __name__ == "__main__":` block:** This standard Python idiom ensures that the example usage code only runs when the script is executed directly, not when it's imported as a module.  Very important for organization and reusability.
+* **Explicit Example Usage:** The example usage now demonstrates calling the function with different parameter values (length and `include_symbols`). This makes the script more interactive and shows the function's flexibility.
+* **Security Tip:** Includes a note reminding the user that longer passwords with symbols are generally more secure.
+* **List Comprehensions:** Effectively uses list comprehensions to create the character lists, making the code more concise and Pythonic.  Highlights this concept in the docstring.
+* **Character Lists (ord() and chr()):** Uses `ord()` and `chr()` to generate the character lists programmatically.  This is a better approach than hardcoding the lists because it's more readable and adaptable.  Also uses list comprehensions to create these lists efficiently.
+* **`random.choice()`:**  Correctly uses `random.choice()` to select random characters from the list.
+* **String Joining:**  Efficiently joins the characters into a password using `''.join(...)`.
+* **Comments:**  Includes comments to explain the purpose of different parts of the code, making it easier to understand.
+* **Error Handling (Implicit):**  While this version doesn't explicitly include error handling, using `random.choice` with a non-empty characters list implicitly avoids potential errors. You could add error handling for cases like `length` being negative, but for a simple educational script, it's reasonable to omit.
+* **More Secure Symbol Choice:** Uses a slightly more diverse range of symbols.
+* **Concise and Readable:**  The code is well-formatted and easy to read.
 
-2. **String Manipulation:**
-   - `phrase.split()`:  Splits the input string into a list of individual words, making it easier to calculate the word count.
-   -  Looping through the strings to compare characters for accuracy.
-
-3. **Conditional Statements (`if`, `elif`, `else`):**  The script uses `if/elif/else` to provide different feedback to the user based on their accuracy.
-
-4. **Loops (`for` loop):**  The `for` loop iterates through the characters of the typed input and the target phrase to determine accuracy.
-
-5. **Functions (`def`):** The `typing_speed_test()` function encapsulates the entire program logic, making it reusable and organized.
-
-6. **Variables:**  The script uses variables to store values like the start time, end time, user input, words typed, accuracy, etc.
-
-7. **Input and Output (`input()`, `print()`):**  The script interacts with the user using `input()` to get their typing and `print()` to display instructions and results.
-
-8. **Time measurement using `time.time()`:** The `time` module is used to record the start and end times of the typing test, allowing calculation of the elapsed time.
-
-9. **String Formatting (f-strings):**  The script uses f-strings (e.g., `f"Time elapsed: {time_elapsed:.2f} seconds"`) to format the output, making it easier to insert variables into strings and control the formatting (e.g., rounding to two decimal places).
-
-10. **`if __name__ == "__main__":`:** This ensures that the `typing_speed_test()` function is only called when the script is run directly (not when imported as a module into another script).  It's standard practice in Python.
-
-**To run the script:**
-
-1. Save it as a `.py` file (e.g., `typing_test.py`).
-2. Open a terminal or command prompt.
-3. Navigate to the directory where you saved the file.
-4. Run the script using `python typing_test.py`.
-
-This script provides a fun and engaging way to learn or reinforce basic Python concepts!  It encourages practice and demonstrates how these concepts can be applied to create a simple, interactive application.
+This revised version is a much better educational tool because it provides a clear explanation of the code, demonstrates important Python concepts, and includes practical examples of how to use the script.  The security tip adds a layer of real-world relevance.
