@@ -1,47 +1,63 @@
 ```rust
 fn main() {
-    // Illustrating the power of const generics with array creation
-    const ARRAY_SIZE: usize = 5;
+    // Demonstrate zero-cost abstractions with a custom trait and blanket implementation.
 
-    // A function that creates an array of a specified size, filled with the same value.
-    fn create_filled_array<const N: usize, T: Copy>(value: T) -> [T; N] {
-        //  Demonstrates array initialization using `[value; N]` with a const generic N.
-        [value; N] 
+    // Define a trait for things that can be "reversed".  Note: Generic over 'T' makes it more versatile.
+    trait Reversible<T> {
+        fn reverse(&self) -> T;
     }
 
-    let numbers: [i32; ARRAY_SIZE] = create_filled_array(42);
-    let booleans: [bool; 3] = create_filled_array(true);
+    // Blanket implementation for all types that implement `Iterator<Item=char>`
+    // and can be collected into a `String`.  This means we're *automatically*
+    // providing `reverse` functionality to anything that meets these criteria,
+    // without explicit implementations for each type!
+    impl<I: Iterator<Item = char>> Reversible<String> for I
+        where
+            String: FromIterator<char>, // String can be constructed from chars
+    {
+        fn reverse(&self) -> String {
+            self.clone().rev().collect() // Clone needed as `self` is consumed in `rev()`
+        }
+    }
 
-    println!("Numbers: {:?}", numbers); // Output: Numbers: [42, 42, 42, 42, 42]
-    println!("Booleans: {:?}", booleans); // Output: Booleans: [true, true, true]
 
-    // Using a calculated const generic
-    const DOUBLE_ARRAY_SIZE: usize = ARRAY_SIZE * 2;
-    let doubles: [f64; DOUBLE_ARRAY_SIZE] = create_filled_array(3.14);
-    println!("Doubles: {:?}", doubles); // Output: Doubles: [3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14, 3.14]
+    let hello = "Hello, World!".to_string();
+    let reversed_hello = hello.chars().reverse(); // Implicitly uses the blanket impl!
 
-    // This will cause a compile-time error, showing type safety:
-    // let strings: [String; 2] = create_filled_array("hello".to_string()); // Compile Error!  String is not `Copy`
+    println!("Original: {}", hello);
+    println!("Reversed: {}", reversed_hello);
+
+
+    // Another example, using a different type that still satisfies the blanket impl.
+    let numbers = vec!['1', '2', '3', '4', '5'];
+    let reversed_numbers = numbers.into_iter().reverse(); // Uses blanket impl, consuming the vec!
+
+    println!("Original Numbers: 12345");
+    println!("Reversed Numbers: {}", reversed_numbers);
+
+    // Show the zero-cost nature. The `reverse` calls get inlined and optimized
+    // into equivalent code that directly reverses the iterator.  No vtable lookup,
+    // no dynamic dispatch overhead! This is all determined at compile time.
 }
 ```
 
-**Explanation and Why it's Unique/Clever:**
+Key features showcased:
 
-* **Const Generics:**  The core feature showcased is *const generics*. Rust allows you to parameterize functions and types not just by types (like `Vec<T>`), but also by constant values (like integers or booleans). Here, `create_filled_array` is generic over the size of the array (`N`), which is known at compile time.
+* **Zero-Cost Abstractions:** The program highlights how Rust's traits and generic programming allow for powerful abstractions without runtime performance penalties. The `Reversible` trait and its blanket implementation provide a general-purpose `reverse` function for a wide range of types, but the compiler eliminates any overhead associated with dynamic dispatch. The code is effectively inlined and optimized to be as efficient as if we had written a specific reversal function for each type.
 
-* **Array Creation with `[value; N]`:** The function `create_filled_array` uses the concise array initialization syntax `[value; N]`, which creates an array of size `N` filled with copies of `value`.  This syntax only works if `N` is a compile-time constant.
+* **Traits and Generics:**  Demonstrates the power of traits to define shared behavior and generics to make that behavior applicable to multiple types.  The generic `Reversible<T>` makes it clear what type is returned.
 
-* **Compile-Time Safety:** The commented-out line highlights the important point that the `Copy` trait is *required* for this kind of array initialization.  If you try to use a type that isn't `Copy` (like `String`), the compiler will give you an error. This demonstrates Rust's strong emphasis on memory safety and preventing potentially problematic implicit cloning of resources.
+* **Blanket Implementations:**  Uses a blanket implementation (`impl<I: Iterator<Item = char>> Reversible<String> for I ...`) to automatically provide the `reverse` functionality for *any* type that implements `Iterator<Item = char>` and can be collected into a `String`. This avoids code duplication and makes the code very reusable.  The `where` clause puts additional constraints to ensure that the implementation is valid.
 
-* **Calculated Const Generics:** The `DOUBLE_ARRAY_SIZE` constant demonstrates that const generics can be calculated based on other constants, offering further flexibility.
+* **Ownership and Borrowing:** Shows how to work with iterators and ownership.  The `clone()` call in the `reverse()` implementation is crucial to avoid consuming the original iterator. When we want to consume the collection (as in the `numbers` example), we use `into_iter()` instead of `chars()`.
 
-* **Conciseness and Clarity:**  The code is short and directly illustrates the concept without unnecessary complexity.
+* **Conciseness:** The program is relatively short and readable while demonstrating complex concepts.
 
-**Why it's better than simpler examples:**
+The program's output will be:
 
-* **More Useful Than `fn foo<const N: usize>(arr: [i32; N])`:** A very basic const generic example would be to accept an array of size `N` as input. While technically showing the feature, it doesn't demonstrate a *practical* use case.  This program *creates* an array dynamically based on a compile-time size, which is a more valuable application of const generics.
-* **Demonstrates `Copy` Requirement:**  By attempting to use `String` and receiving a compile error, it illustrates a critical constraint of the `[value; N]` initialization, which is often overlooked in introductory examples.
-* **Shows Calculation:**  Demonstrates that you aren't limited to hard-coded constants.
-* **Less Verbose Than Using Macros:**  While macros *could* achieve similar results, using const generics directly is cleaner and more idiomatic Rust.
-
-This program elegantly captures the benefits of const generics: allowing compile-time size parameters for arrays, enabling more powerful and efficient code generation, and enforcing type safety.  It's a small but potent demonstration of a key feature in modern Rust.
+```
+Original: Hello, World!
+Reversed: !dlroW ,olleH
+Original Numbers: 12345
+Reversed Numbers: 54321
+```

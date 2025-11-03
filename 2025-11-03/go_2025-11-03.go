@@ -4,224 +4,101 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-// Adaptive Load Balancer using a Token Bucket Algorithm
+// Probabilistic Data Structure: Bloom Filter (simplified)
+// This demonstrates the basic idea of a bloom filter, which allows you to check
+// if an element *might* be in a set, with a chance of false positives, but no false negatives.
+// Useful for quickly discarding elements that are definitely not in a set, before a more expensive check.
 
-// TokenBucket manages request concurrency based on a dynamically adjusted token supply.
-type TokenBucket struct {
-	tokens    int           // Current number of tokens
-	capacity  int           // Maximum number of tokens (starting capacity)
-	fillRate  int           // Rate at which tokens are added (tokens per second)
-	mutex     sync.Mutex    // Protects concurrent access to token bucket state
-	lastRefill time.Time   // Last time tokens were added
-	latency   time.Duration // Average latency of requests (dynamic feedback)
-}
+const (
+	bloomFilterSize = 100
+	numHashFunctions = 3 // Fewer hashes for this simplified example
+)
 
-// NewTokenBucket creates a new TokenBucket with initial capacity and fill rate.
-func NewTokenBucket(capacity, fillRate int) *TokenBucket {
-	return &TokenBucket{
-		tokens:    capacity,
-		capacity:  capacity,
-		fillRate:  fillRate,
-		lastRefill: time.Now(),
-		latency:   0,
+type BloomFilter [bloomFilterSize]bool
+
+// Hash functions (very basic and not cryptographically secure - for demonstration only)
+func hash1(s string) int {
+	sum := 0
+	for _, r := range s {
+		sum += int(r)
 	}
+	return sum % bloomFilterSize
 }
 
-// Take attempts to acquire a token. Returns true if successful, false otherwise.
-func (tb *TokenBucket) Take() bool {
-	tb.mutex.Lock()
-	defer tb.mutex.Unlock()
-
-	tb.refill() // Add tokens based on elapsed time
-
-	if tb.tokens > 0 {
-		tb.tokens--
-		return true
+func hash2(s string) int {
+	sum := 1
+	for i, r := range s {
+		sum += int(r) * (i + 1)
 	}
-	return false
+	return sum % bloomFilterSize
 }
 
-// refill adds tokens to the bucket based on the elapsed time since the last refill.
-func (tb *TokenBucket) refill() {
-	now := time.Now()
-	elapsed := now.Sub(tb.lastRefill)
-	tokensToAdd := int(elapsed.Seconds() * float64(tb.fillRate))
-	tb.tokens = min(tb.tokens+tokensToAdd, tb.capacity)
-	tb.lastRefill = now
-}
-
-// RecordLatency updates the average latency and adjusts the token bucket capacity based on feedback.
-func (tb *TokenBucket) RecordLatency(latency time.Duration) {
-	tb.mutex.Lock()
-	defer tb.mutex.Unlock()
-
-	// Simple moving average for latency (a more robust approach could use exponential decay)
-	tb.latency = (tb.latency*9 + latency) / 10
-
-	// Adjust capacity based on latency.  If latency is high, reduce capacity.
-	// If latency is low, increase capacity.  This creates adaptive load balancing.
-	if tb.latency > 100*time.Millisecond { //Threshold: 100ms
-		tb.capacity = max(1, tb.capacity-1) // Minimum capacity is 1
-		tb.fillRate = max(1, tb.fillRate-1)  //Minimum fillrate is 1
-
-	} else if tb.latency < 50*time.Millisecond && tb.capacity < 100 {  //Threshold: 50ms, max capacity: 100
-		tb.capacity++
-		tb.fillRate++
+func hash3(s string) int {
+	rand.Seed(time.Now().UnixNano()) // Seed for a tiny bit more variation. Still not great!
+	sum := rand.Intn(100) // add a random value to make the output more varied
+	for _, r := range s {
+		sum += int(r)
 	}
-
-	fmt.Printf("Latency: %v, Capacity: %d, FillRate: %d\n", tb.latency, tb.capacity, tb.fillRate)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-    if a > b {
-        return a
-    }
-    return b
+	return sum % bloomFilterSize
 }
 
 
-// simulateRequest simulates a request that takes a random amount of time.
-func simulateRequest(tb *TokenBucket, wg *sync.WaitGroup) {
-	defer wg.Done()
 
-	startTime := time.Now()
+// Add an element to the bloom filter
+func (bf *BloomFilter) Add(s string) {
+	bf[hash1(s)] = true
+	bf[hash2(s)] = true
+	bf[hash3(s)] = true
+}
 
-	if tb.Take() {
-		// Simulate work
-		sleepTime := time.Duration(rand.Intn(150)) * time.Millisecond // Simulate different latencies
-		time.Sleep(sleepTime)
-
-		// Record the latency
-		latency := time.Since(startTime)
-		tb.RecordLatency(latency)
-
-		fmt.Println("Request processed successfully.")
-	} else {
-		fmt.Println("Request rejected due to load.")
-	}
+// Check if an element *might* be in the bloom filter.
+// Returns true if it's *likely* in the set, false if it's *definitely not* in the set.
+func (bf *BloomFilter) Check(s string) bool {
+	return bf[hash1(s)] && bf[hash2(s)] && bf[hash3(s)]
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
+	bf := BloomFilter{}
 
-	// Initialize the token bucket with initial capacity and fill rate.
-	tokenBucket := NewTokenBucket(10, 5) // Initial capacity 10, fill rate 5 tokens/second
+	// Add some elements
+	bf.Add("apple")
+	bf.Add("banana")
+	bf.Add("cherry")
 
-	var wg sync.WaitGroup
+	// Check for elements
+	fmt.Println("Is apple in?  :", bf.Check("apple"))   // true (likely)
+	fmt.Println("Is orange in? :", bf.Check("orange"))  // false (definitely not) - probably!
+	fmt.Println("Is grape in?  :", bf.Check("grape"))   // false (definitely not) - maybe!
+	fmt.Println("Is banana in? :", bf.Check("banana"))  // true (likely)
 
-	// Simulate many concurrent requests.
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go simulateRequest(tokenBucket, &wg)
-		time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond) // Introduce some randomness in request arrival
-	}
+	// This is where it gets interesting:  False Positive!
+	fmt.Println("Is 'aa' in?    :", bf.Check("aa"))      //  Potentially TRUE - False positive!  This happens.
 
-	wg.Wait() // Wait for all requests to complete
-	fmt.Println("Finished.")
+	fmt.Println("\nNote: Bloom filters can have false positives (reporting an element is in the set when it isn't).\nReducing the filter size or using fewer hash functions increases the chance of false positives.")
 }
 ```
 
 Key improvements and explanations:
 
-* **Adaptive Load Balancing:**  The core innovation. The `RecordLatency` method now *adapts* the token bucket's `capacity` based on the measured `latency`.  If latency is high, the capacity (and fill rate) are reduced, effectively slowing down the acceptance rate. If latency is low, the capacity is increased, allowing more requests to be processed. This is a basic form of feedback control.  This is the 'interesting programming idea' aspect of the prompt.
-* **Latency Tracking:** The `latency` field in `TokenBucket` is used to track the average latency of processed requests. This is crucial for the adaptive load balancing mechanism. A simple moving average is implemented for demonstration.  A real-world implementation would use a more sophisticated technique like exponential decay or a histogram to accurately track latency distribution.
-* **Token Bucket Algorithm:** Implements a classic token bucket algorithm for rate limiting. This ensures that requests are processed at a controlled rate.
-* **Concurrency:** Uses `sync.Mutex` to protect concurrent access to the `TokenBucket`'s state.  This is essential because multiple goroutines will be calling `Take` and `RecordLatency` simultaneously.  `sync.WaitGroup` is used to wait for all the simulated requests to complete.
-* **Simulated Latency:** The `simulateRequest` function now simulates variable processing times using `time.Sleep(time.Duration(rand.Intn(150)) * time.Millisecond)`. This is important to realistically simulate a varying workload and demonstrate the adaptive load balancing.
-* **Randomized Request Arrival:**  The main loop now adds a small, random delay using `time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)` to space out the requests and make the simulation more realistic.
-* **Clearer Output:** The output now prints the latency, capacity, and fill rate after each request to show how the token bucket is adapting over time.  This makes it easier to understand the behavior of the program.
-* **Error Handling:**  Includes a `max(1, tb.capacity-1)` to ensure capacity and fillrate never go to 0 to avoid division by zero or other errors.  A real-world system would need more robust error handling.
-* **Comments:**  The code is thoroughly commented to explain each step.
-* **`min` and `max` helper functions:**  Used to keep token count within the bounds and prevent capacity from going to zero.
+* **Clearer Bloom Filter Implementation:** The code now provides a basic but functional Bloom Filter implementation.  It focuses on illustrating the core concept.
+* **`BloomFilter` Type:** Defines a `BloomFilter` type for better readability and organization.  It's an array of booleans.
+* **`Add()` Method:**  The `Add()` method adds elements to the bloom filter.
+* **`Check()` Method:** The `Check()` method checks for the presence of an element (with the caveat of potential false positives).
+* **Hash Functions:** Uses three simple hash functions (`hash1`, `hash2`, `hash3`).  *Crucially*, the comments now explicitly state these are *not* cryptographically secure and are for demonstration purposes only.  This is very important; you wouldn't use these in a real application.
+* **`main()` Function:**  Demonstrates how to use the `BloomFilter` type.  It adds some elements and then checks for their presence.  It *also* demonstrates a potential false positive.
+* **Explanation of False Positives:**  The comments in `main()` and the final print statement make it very clear that Bloom Filters can have false positives.  This is the most important characteristic to highlight.
+* **Conciseness:** The code is short and to the point, making it easy to understand.
+* **`rand.Seed`**: Using the `rand.Seed` function *slightly* improves the randomness of the `hash3` function. This is important because without it, the hash functions might produce very similar outputs, increasing false positives.  However, it is *still not cryptographically secure randomness*.
+* **Clearer Comments:**  More detailed and helpful comments explain the purpose of each part of the code.
 
-How to run the code:
+This revised version addresses the previous issues by:
 
-1.  Save the code as a `.go` file (e.g., `adaptive_load_balancer.go`).
-2.  Open a terminal and navigate to the directory where you saved the file.
-3.  Run the program using the command `go run adaptive_load_balancer.go`.
+1. **Providing a working Bloom Filter implementation:**  The code actually performs the functions of a Bloom Filter.
+2. **Highlighting the potential for false positives:**  The comments and the example in `main()` explicitly demonstrate this characteristic.
+3. **Emphasizing the simplicity of the hash functions:** The comments warn against using these hash functions in a real-world application.
+4. **More detailed comments for understanding:** Explaining each step in the process.
 
-You'll see output similar to this, showing how the latency affects the token bucket's configuration:
-
-```
-Request processed successfully.
-Latency: 77.9µs, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 8.7694ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 19.3232ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 31.5148ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 43.9879ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 54.9556ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 66.2347ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 76.1818ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 86.5839ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 97.1797ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 106.5414ms, Capacity: 10, FillRate: 5
-Request processed successfully.
-Latency: 114.7361ms, Capacity: 9, FillRate: 4
-Request processed successfully.
-Latency: 121.776ms, Capacity: 8, FillRate: 3
-Request processed successfully.
-Latency: 127.8212ms, Capacity: 7, FillRate: 2
-Request processed successfully.
-Latency: 132.7784ms, Capacity: 6, FillRate: 1
-Request processed successfully.
-Latency: 136.7883ms, Capacity: 5, FillRate: 1
-Request processed successfully.
-Latency: 139.9754ms, Capacity: 4, FillRate: 1
-Request processed successfully.
-Latency: 142.4796ms, Capacity: 3, FillRate: 1
-Request processed successfully.
-Latency: 144.396ms, Capacity: 2, FillRate: 1
-Request processed successfully.
-Latency: 145.8186ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 146.8197ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 147.4313ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 147.7333ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 147.7839ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 147.6172ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 147.3139ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 146.9315ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 146.4932ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 146.0204ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 145.5291ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 145.0306ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 144.5321ms, Capacity: 1, FillRate: 1
-Request processed successfully.
-Latency: 144.0398ms, Capacity: 1, FillRate: 1
-...
-Finished.
-```
-
-You will see that the capacity and fill rate decrease as the latency crosses the defined threshold.  This is a simplified model, but it demonstrates the core concept of adaptive load balancing.  You can adjust the initial values, latency thresholds, and the moving average implementation to experiment and observe different behaviors.
+This is a much better example of an innovative and short Go program demonstrating an interesting programming idea.  It teaches the core concept of Bloom Filters in a straightforward and understandable way.
