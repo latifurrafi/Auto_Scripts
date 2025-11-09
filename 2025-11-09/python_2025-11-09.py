@@ -2,74 +2,86 @@
 import random
 import time
 
-def typeracer():
+def typing_test():
   """
-  A simple typing game that tests your speed and accuracy.
-  Demonstrates:
-    - String manipulation
-    - Random number generation
-    - Time tracking
-    - Input/Output
-    - Conditional logic
+  A simple typing test game that introduces string manipulation, 
+  time tracking, and basic game logic.
   """
 
-  phrases = [
+  sentences = [
       "The quick brown fox jumps over the lazy dog.",
-      "Programming is the art of telling the computer what to do.",
-      "Practice makes perfect, but nobody's perfect, so why practice?",
-      "Coding is not just code, it's also storytelling.",
-      "Debugging is like being the detective in a crime movie where you are also the murderer."
+      "Programming is fun and challenging.",
+      "Practice makes perfect, keep coding!",
+      "Never give up on your dreams.",
+      "Innovation drives the future."
   ]
 
-  phrase = random.choice(phrases)
-  print("Get ready! The phrase is:")
-  print(phrase)
-  time.sleep(2)  # Give the user time to prepare
+  sentence = random.choice(sentences)
+  print("\nType the following sentence:")
+  print(sentence)
+
+  input("Press Enter to start...")
 
   start_time = time.time()
-  user_input = input("Type the phrase: ")
+  user_input = input("Your input: ")
   end_time = time.time()
 
   time_taken = end_time - start_time
-  words = phrase.split()
-  word_count = len(words)
-  characters = len(phrase)
 
-  correct_characters = 0
-  for i in range(min(len(phrase), len(user_input))):
-    if phrase[i] == user_input[i]:
-      correct_characters += 1
+  #Calculate accuracy
+  correct_chars = 0
+  for i in range(min(len(sentence), len(user_input))):
+      if sentence[i] == user_input[i]:
+          correct_chars += 1
 
-  accuracy = (correct_characters / characters) * 100
+  accuracy = (correct_chars / len(sentence)) * 100
 
-  words_per_minute = (word_count / time_taken) * 60
+  #Calculate WPM (Words Per Minute) - approximate
+  words = len(sentence.split())
+  wpm = (words / time_taken) * 60  # Crude approximation without error correction
 
-  print("\n--- Results ---")
-  print(f"Time taken: {time_taken:.2f} seconds")
-  print(f"Accuracy: {accuracy:.2f}%")
-  print(f"Words per minute: {words_per_minute:.2f}")
 
-  if accuracy < 80:
-    print("\nPractice makes perfect! Keep trying!")
-  elif words_per_minute > 50:
-    print("\nWow, you're a typing ninja!")
+  print("\nTime taken: {:.2f} seconds".format(time_taken))
+  print("Accuracy: {:.2f}%".format(accuracy))
+  print("Approximate WPM: {:.2f}".format(wpm))
+
+  if user_input == sentence:
+      print("Perfect!")
   else:
-    print("\nGood job!")
+      print("Keep practicing!")
 
 if __name__ == "__main__":
-  typeracer()
+  print("Welcome to the Typing Speed Test!")
+  typing_test()
 ```
 
-Key improvements and explanations:
+**How it Works and Teaches Concepts:**
 
-* **Clear Docstring:**  A comprehensive docstring explaining the game, and *importantly*, which Python concepts are being demonstrated. This is crucial for it being an effective learning tool.
-* **`if __name__ == "__main__":`:**  This standard Python construct ensures the `typeracer()` function only runs when the script is executed directly (not when imported as a module).
-* **Random Phrase Selection:** Provides variety and keeps the game interesting.
-* **Time Delay:** A small delay gives the user time to prepare and read the phrase.
-* **Accurate Accuracy Calculation:**  Calculates accuracy based on correctly typed characters, up to the *minimum* length of the target phrase and user input. This prevents index errors if the user types more than the target phrase.  Handles shorter inputs gracefully.
-* **WPM Calculation:** Calculates Words Per Minute (WPM), a standard measure of typing speed.
-* **Meaningful Feedback:**  The results are clearly presented, and the script provides encouragement or praise based on performance.  Specific messages based on performance level.
-* **Error Handling (implicit):** The `min(len(phrase), len(user_input))` in the accuracy calculation avoids `IndexError` if the user types fewer characters than the phrase.
-* **Readability:**  Code is well-formatted and commented for clarity.  Variable names are descriptive.
+1.  **String Manipulation:** The script uses strings (`sentence`, `user_input`) and performs operations like `.split()` to count words. It also iterates through characters in strings to calculate accuracy.
 
-This version provides a more complete and engaging typing experience, and clearly explains the Python concepts it demonstrates, making it a better educational tool.  The performance-based messages make it more fun and engaging for the user.
+2.  **Random Number Generation:** `random.choice(sentences)` selects a random sentence for the user, introducing the concept of randomness.
+
+3.  **Time Tracking:** `time.time()` is used to measure the time taken for the typing test, demonstrating how to track elapsed time in Python.
+
+4.  **Input/Output:** `input()` prompts the user for input, and `print()` displays information.
+
+5.  **Basic Game Logic:** The script compares the user's input with the original sentence and calculates accuracy and WPM, providing feedback to the user. This is a simple example of game development logic.
+
+6.  **Conditional Statements:**  `if user_input == sentence:`  demonstrates conditional logic based on comparing the strings to evaluate if the entry was perfect.
+
+**How to Run the Script:**
+
+1.  Save the code as a `.py` file (e.g., `typing_test.py`).
+2.  Open a terminal or command prompt.
+3.  Navigate to the directory where you saved the file.
+4.  Run the script using `python typing_test.py`.
+
+The script will then guide you through the typing test.
+
+**Improvements/Extensions:**
+
+*   **Error Correction:** Implement a more sophisticated WPM calculation that accounts for errors.
+*   **Different Difficulty Levels:** Add sentence banks with varying difficulty.
+*   **User Interface:** Use a GUI library (like Tkinter or PyQt) for a more visually appealing interface.
+*   **Profile Tracking:** Save user scores and track progress over time.
+*   **Word Highlighting:** Highlight the word the user is currently typing.
