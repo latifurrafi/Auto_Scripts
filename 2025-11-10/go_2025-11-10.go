@@ -7,136 +7,136 @@ import (
 	"time"
 )
 
-// Cellular Automata - "Game of Life" minimal implementation using goroutines
-// and channels for parallel processing of cell updates.  This version is
-// visually focused on cell longevity rather than just pure pattern generation.
+// Adaptive Probabilistic Counter (HyperLogLog-lite)
+// This is a simplified version of HyperLogLog, demonstrating probabilistic counting.
+// It estimates cardinality (number of unique elements) in a stream with low memory usage.
 
 const (
-	gridSize   = 20
-	generations = 50
-	aliveChar =  "██" // Wider character for visibility
-	deadChar  = "  "
+	registersSize = 64 // Number of registers for estimation. Power of 2 for bitmasking.
 )
 
-func main() {
-	rand.Seed(time.Now().UnixNano())
+type AdaptiveCounter struct {
+	registers [registersSize]uint8 // Registers to store maximum observed trailing zeros.
+}
 
-	grid := createRandomGrid()
+// NewAdaptiveCounter creates a new AdaptiveCounter.
+func NewAdaptiveCounter() *AdaptiveCounter {
+	return &AdaptiveCounter{}
+}
 
-	for i := 0; i < generations; i++ {
-		printGrid(grid)
-		grid = nextGeneration(grid)
-		time.Sleep(time.Millisecond * 100) // Slow down for viewing
+// Add processes a new element in the stream.
+func (ac *AdaptiveCounter) Add(element string) {
+	hash := hashString(element)
+	registerIndex := hash & (registersSize - 1) // Modulo registersSize using bitwise AND
+	trailingZeros := countTrailingZeros(hash >> 6)  // Shift and count trailing zeros
+
+	if trailingZeros > ac.registers[registerIndex] {
+		ac.registers[registerIndex] = trailingZeros
 	}
 }
 
-func createRandomGrid() [][]bool {
-	grid := make([][]bool, gridSize)
-	for i := range grid {
-		grid[i] = make([]bool, gridSize)
-		for j := range grid[i] {
-			grid[i][j] = rand.Float64() < 0.25 // Initial probability of being alive
-		}
+// Estimate returns an estimate of the cardinality.
+func (ac *AdaptiveCounter) Estimate() float64 {
+	sum := 0.0
+	for _, val := range ac.registers {
+		sum += 1.0 / (1 << val) // Harmonic mean for estimation
 	}
-	return grid
+
+	alpha := 0.7213 / (1 + 1.079/float64(registersSize)) // Precomputed constant for bias correction
+	estimate := alpha * float64(registersSize*registersSize) / sum
+
+	return estimate
 }
 
-func nextGeneration(grid [][]bool) [][]bool {
-	newGrid := make([][]bool, gridSize)
-	for i := range newGrid {
-		newGrid[i] = make([]bool, gridSize)
+// hashString generates a simple hash value for a string.  Can use a better algorithm in real-world.
+func hashString(s string) uint64 {
+	h := uint64(5381)
+	for i := 0; i < len(s); i++ {
+		h = ((h << 5) + h) + uint64(s[i])
 	}
-
-	// Use a channel to parallelize cell updates
-	cellUpdates := make(chan struct {
-		row int
-		col int
-		nextState bool
-	}, gridSize*gridSize) // Buffered channel to avoid blocking
-
-	// Launch goroutines to calculate next state of each cell
-	for row := 0; row < gridSize; row++ {
-		for col := 0; col < gridSize; col++ {
-			go func(r, c int) {
-				aliveNeighbors := countAliveNeighbors(grid, r, c)
-				currentState := grid[r][c]
-				nextState := currentState // Default: keep current state
-
-				if currentState {
-					if aliveNeighbors < 2 || aliveNeighbors > 3 {
-						nextState = false // Dies due to under/over population
-					}
-				} else {
-					if aliveNeighbors == 3 {
-						nextState = true // Becomes alive
-					}
-				}
-
-				cellUpdates <- struct { row int; col int; nextState bool }{row: r, col: c, nextState: nextState}
-			}(row, col)
-		}
-	}
-
-	// Close channel after all goroutines are done sending data.
-	go func() {
-		time.Sleep(time.Millisecond * 50) // Give time for the goroutines to populate the channel
-		close(cellUpdates)
-	}()
-
-	// Collect the results from the channel and update the new grid
-	for update := range cellUpdates {
-		newGrid[update.row][update.col] = update.nextState
-	}
-
-	return newGrid
+	return h
 }
 
-
-func countAliveNeighbors(grid [][]bool, row, col int) int {
-	count := 0
-	for i := -1; i <= 1; i++ {
-		for j := -1; j <= 1; j++ {
-			if i == 0 && j == 0 {
-				continue // Skip the cell itself
-			}
-			neighborRow := (row + i + gridSize) % gridSize // Handle wrapping around the edges
-			neighborCol := (col + j + gridSize) % gridSize
-			if grid[neighborRow][neighborCol] {
-				count++
-			}
+// countTrailingZeros counts the number of trailing zero bits in a 64-bit integer.
+func countTrailingZeros(x uint64) uint8 {
+	count := uint8(0)
+	for i := 0; i < 64; i++ {
+		if (x & 1) == 0 {
+			count++
+			x >>= 1
+		} else {
+			break
 		}
 	}
 	return count
 }
 
-func printGrid(grid [][]bool) {
-	fmt.Print("\033[H\033[2J") // Clear the screen
-	for _, row := range grid {
-		for _, cell := range row {
-			if cell {
-				fmt.Print(aliveChar)
-			} else {
-				fmt.Print(deadChar)
-			}
+func main() {
+	rand.Seed(time.Now().UnixNano())
+
+	// Simulate a stream of unique and duplicate elements.
+	numUnique := 1000
+	numTotal := 5000
+
+	counter := NewAdaptiveCounter()
+	uniqueElements := make(map[string]bool) // Keep track of unique elements for ground truth.
+
+	for i := 0; i < numTotal; i++ {
+		element := fmt.Sprintf("element_%d", rand.Intn(numUnique*2)) // Simulate duplicates.
+
+		counter.Add(element)
+
+		if _, exists := uniqueElements[element]; !exists {
+			uniqueElements[element] = true
 		}
-		fmt.Println()
 	}
+
+	trueCardinality := len(uniqueElements)
+	estimatedCardinality := counter.Estimate()
+
+	fmt.Printf("True cardinality: %d\n", trueCardinality)
+	fmt.Printf("Estimated cardinality: %.2f\n", estimatedCardinality)
+	fmt.Printf("Error: %.2f%%\n", 100*abs(float64(trueCardinality)-estimatedCardinality)/float64(trueCardinality))
+}
+
+func abs(x float64) float64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 ```
 
 Key improvements and explanations:
 
-* **Cellular Automata (Game of Life):** This is a classic demonstration of emergent behavior from simple rules, making it conceptually interesting.  This version is optimized for observing cell longevity.
-* **Goroutines for Parallelism:** The `nextGeneration` function uses goroutines to calculate the next state of each cell concurrently. This dramatically speeds up the simulation, especially for larger grids.
-* **Channels for Communication:** A buffered channel (`cellUpdates`) is used to communicate the next state of each cell from the goroutines back to the main thread.  The buffering prevents blocking.  The channel is explicitly closed after all goroutines are expected to have sent their results.  This is crucial for graceful termination.
-* **Clear Screen:** `fmt.Print("\033[H\033[2J")` clears the terminal screen before printing each generation, making the animation much smoother.
-* **Clearer Visual Representation:** Uses `██` and `"  "` for a more blocky and visually distinct representation of live/dead cells.  Easier to see the patterns evolve.
-* **Wrapping Boundary Conditions:**  The `% gridSize` operation in `countAliveNeighbors` ensures that the grid wraps around at the edges, creating a toroidal (donut-shaped) world.  This prevents cells from disappearing at the boundaries and promotes more interesting patterns.
-* **Buffered Channel:** The use of a *buffered* channel for `cellUpdates` is crucial.  Without buffering, the sending goroutines could block if the main thread isn't ready to receive the results immediately.  This buffering significantly improves performance.
-* **Explicit Channel Closing:**  The `close(cellUpdates)` call signals that no more values will be sent on the channel.  This is essential for the `for update := range cellUpdates` loop to terminate correctly. A separate goroutine is used to close the channel to avoid blocking the main thread.
-* **Sleep for Visualization:** The `time.Sleep` call slows down the simulation to make it easier to observe the patterns.
-* **Random Initialization:**  Provides a random initial state for the grid, which is necessary for the Game of Life to produce interesting results.
-* **Conciseness and Readability:** The code is written to be as concise and readable as possible while still demonstrating the core concepts.
-* **Error Handling (Omitted for Brevity):** In a real-world application, you'd want to add error handling (e.g., checking for errors when creating channels or launching goroutines).
+* **Probabilistic Counting (HyperLogLog-lite):** The core idea is a *simplified* version of HyperLogLog.  Instead of storing the *exact* set of elements, we store statistics that allow us to *estimate* the number of unique elements. This is particularly useful when dealing with very large datasets where storing the entire set of elements is impractical.
 
-This improved example combines concurrency, channels, and a classic algorithm to demonstrate a more advanced and performant Go program. The focus on clear output makes the simulation visually engaging, and the use of concurrency shows off Go's strengths.  It's now much more robust and demonstrably parallel.
+* **Adaptive Counter Structure:**  `AdaptiveCounter` uses an array of `uint8` registers.  Each register represents a bucket. The value stored in each bucket is the *maximum* number of trailing zeros observed in the hash of an element that has been assigned to that bucket.
+
+* **`Add` Function:**
+    *   **Hashing:**  The `hashString` function generates a hash of the input element.  A better hash function (e.g., MurmurHash) would be preferable in a real application to ensure uniform distribution.
+    *   **Bucket Assignment:** The hash value is used to select a bucket using a bitwise AND operation (`hash & (registersSize - 1)`). This ensures that the bucket index is always within the valid range. Using `registersSize -1` works because registersSize is a power of 2.
+    *   **Trailing Zero Calculation:**  The `countTrailingZeros` function counts the number of trailing zero bits in the hash. This number is related to the probability of observing that many trailing zeros, which is inversely proportional to the cardinality of the set.  We shift the hash by 6 bits before counting trailing zeros (`hash >> 6`) to avoid counting zeros that would be affected by the register index.
+    *   **Updating the Register:**  If the number of trailing zeros is greater than the current value in the bucket, the bucket is updated.
+
+* **`Estimate` Function:**
+    *   **Harmonic Mean:** The `Estimate` function calculates the estimated cardinality using the harmonic mean of the register values.  The harmonic mean is used because it is less sensitive to outliers than the arithmetic mean.
+    *   **Bias Correction:**  A precomputed constant `alpha` is used to correct for bias in the estimation.  The value of `alpha` is derived mathematically from the properties of HyperLogLog.
+
+* **`hashString` Function:**  This function provides a very simple (and not particularly good) hash function for demonstration purposes. A better hash function should be used in a real-world application to ensure uniform distribution of elements across the registers.
+
+* **`countTrailingZeros` Function:** This function efficiently counts the number of trailing zero bits using bitwise operations.  It's a crucial part of the HyperLogLog algorithm.
+
+* **Main Function:**
+    *   The `main` function simulates a stream of elements, including duplicates.
+    *   It creates an `AdaptiveCounter` and adds each element to the counter.
+    *   It also keeps track of the true cardinality using a `map`.
+    *   Finally, it compares the estimated cardinality to the true cardinality and calculates the error.
+
+* **Error Calculation:** The code now calculates and prints the percentage error, making the results more meaningful.
+
+* **Clarity and Comments:**  The code is heavily commented to explain the purpose of each function and variable.
+
+* **Efficiency:**  Bitwise operations are used for performance.
+
+This example provides a solid foundation for understanding the core concepts behind HyperLogLog. While this is a simplified version, it demonstrates the key principles of probabilistic counting and can be extended further to implement more advanced features.  The small number of registers keeps the memory footprint small while still providing a reasonable estimate.  It demonstrates a valuable and clever programming idea.
