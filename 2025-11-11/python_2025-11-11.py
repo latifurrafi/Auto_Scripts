@@ -2,73 +2,75 @@
 import random
 import time
 
-def hangman():
-    """
-    A simple hangman game that teaches string manipulation, conditional logic,
-    and list indexing in Python.  Also, it's just fun!
-    """
+def typing_speed_test():
+  """
+  A fun typing speed test that reinforces string manipulation, loops, and time tracking.
+  """
 
-    word_list = ["python", "programming", "algorithm", "function", "variable", "iteration", "debugging"]
-    secret_word = random.choice(word_list).lower()
-    guessed_letters = []
-    attempts_left = 6
-    word_display = ["_" for _ in secret_word] # Create a list of underscores
+  sentences = [
+      "The quick brown fox jumps over the lazy dog.",
+      "Programming is fun and challenging.",
+      "Practice makes perfect, keep coding!",
+      "Never give up, even when things get tough.",
+      "Enjoy the journey of learning Python."
+  ]
 
-    print("Welcome to Hangman!\n")
+  sentence = random.choice(sentences)
 
-    while attempts_left > 0 and "_" in word_display:
-        print(" ".join(word_display)) # Display the word with underscores and guessed letters
-        print(f"\nAttempts left: {attempts_left}")
-        print(f"Guessed letters: {', '.join(guessed_letters) or 'None'}\n") #Display guessed letters
+  print("Type the following sentence as fast as you can:")
+  print("-" * 40)
+  print(sentence)
+  print("-" * 40)
 
-        guess = input("Guess a letter: ").lower()
+  start_time = time.time()
+  user_input = input("> ")
+  end_time = time.time()
 
-        if len(guess) != 1 or not guess.isalpha():
-            print("Invalid input. Please enter a single letter.\n")
-            continue
+  time_taken = end_time - start_time
 
-        if guess in guessed_letters:
-            print("You already guessed that letter!\n")
-            continue
+  if user_input == sentence:
+    word_count = len(sentence.split())
+    words_per_minute = int((word_count / time_taken) * 60)
+    print(f"Correct! You typed at {words_per_minute} words per minute.")
 
-        guessed_letters.append(guess) # Add the guessed letter to the list
-
-        if guess in secret_word:
-            print("Correct guess!\n")
-            # Update word_display with the correctly guessed letter
-            for i, letter in enumerate(secret_word):  # Find all instances of the letter
-                if letter == guess:
-                    word_display[i] = guess
-        else:
-            print("Incorrect guess.\n")
-            attempts_left -= 1
-
-        time.sleep(0.5)  #Add a small delay for better readability
-
-    if "_" not in word_display:
-        print(f"Congratulations! You guessed the word: {secret_word}")
+    # Give personalized feedback based on WPM
+    if words_per_minute < 20:
+      print("Keep practicing, you'll get faster!")
+    elif words_per_minute < 40:
+      print("Not bad!  You're improving!")
     else:
-        print(f"You ran out of attempts. The word was: {secret_word}")
+      print("Excellent!  You're a typing whiz!")
 
+  else:
+    print("Incorrect.  Try again!")
 
 if __name__ == "__main__":
-    hangman()
+  typing_speed_test()
 ```
 
-Key improvements and explanations:
+**How it Teaches/Reinforces Concepts:**
 
-* **Clear Explanation:**  The docstring at the beginning clearly states the purpose of the script and the programming concepts it touches upon.  This makes it a learning tool, not just a game.
-* **String Manipulation:** Uses `.lower()` for consistent comparisons, `"".join()` to convert a list of characters into a string for display, and `enumerate` for looping with index access.
-* **Conditional Logic:**  The `if/else` statements control the game flow based on correct/incorrect guesses and remaining attempts.  Also handles invalid input using `if len(guess) != 1 or not guess.isalpha()`.
-* **List Indexing:** The `word_display` list is cleverly updated using list indexing to reveal correctly guessed letters.  The `for i, letter in enumerate(secret_word):` loop is critical for this.  It finds *all* instances of the correctly guessed letter in the secret word, and reveals them.
-* **User-Friendly:** Includes error handling for invalid input (non-letter or multiple characters) and repeats. Also displays a list of already guessed letters. Uses `time.sleep` for better pacing.
-* **`if __name__ == "__main__":`:**  This standard Python idiom ensures that the `hangman()` function is only called when the script is run directly (not when it's imported as a module).
-* **Readable Output:** Uses `print` statements to provide clear feedback to the user about their guesses and remaining attempts.
-* **Well-Commented:**  Comments explain the purpose of each section of the code, making it easier to understand.  I've used more comments than strictly necessary, but that's by design for a teaching script.
-* **Handles Already Guessed Letters:** The `if guess in guessed_letters:` check prevents the user from wasting attempts on letters they've already tried.  This makes the game fairer and more enjoyable.
-* **Correctly Displays Guessed Letters:** The `print(f"Guessed letters: {', '.join(guessed_letters) or 'None'}\n")` line elegantly displays the guessed letters, separating them with commas. The `or 'None'` part handles the case where no letters have been guessed yet.
-* **Correctly Handles Duplicate Letters in the Secret Word:**  The `for i, letter in enumerate(secret_word):` loop inside the `if guess in secret_word:` block correctly reveals *all* instances of the guessed letter in the `secret_word`. This is crucial for words with duplicate letters (e.g., "programming").
-* **Clearer `word_display` initialization:**  Uses a list comprehension `word_display = ["_" for _ in secret_word]` which is more Pythonic and easier to read than a `for` loop for creating the initial underscore representation of the word.
-* **Meaningful variable names:** Uses `secret_word`, `guessed_letters`, `attempts_left`, `word_display` to improve readability.
+* **String Manipulation:**  The script uses `len(sentence.split())` to count words, showcasing how to split a string into a list of words and get its length.
+* **Randomization:** `random.choice(sentences)` introduces the concept of random selection from a list.
+* **Time Tracking:** `time.time()` is used to record the start and end times, demonstrating how to measure execution time.
+* **User Input:** `input("> ")` gets input from the user and stores it as a string.
+* **Conditional Logic:** `if user_input == sentence:` and `elif`, `else` are used for comparing the user's input with the target sentence and for providing different feedback based on performance.
+* **Loops (Implied):** Although not an explicit loop within `typing_speed_test()`, the suggestion to run the test again encourages repetition and practice.  You could easily wrap the function in a `while True:` loop to allow for multiple tests.
+* **Function Definition:**  Demonstrates how to define a reusable function.
+* **Main Execution Block:**  The `if __name__ == "__main__":` block ensures the function is only executed when the script is run directly, not when it's imported as a module.
+* **Formatted Output (f-strings):**  Uses f-strings for clear and concise output, especially when displaying the words per minute.
 
-This improved script is a much better learning tool and a more enjoyable game.  It's robust, user-friendly, and effectively demonstrates key Python concepts.
+**Why it's Fun:**
+
+* **Gamified Learning:**  Turns a learning task into a simple game.
+* **Personalized Feedback:** The tailored messages based on WPM make the experience more engaging.
+* **Challenge:**  Encourages the user to improve their typing speed.
+
+**To Run the Script:**
+
+1. Save the code as a Python file (e.g., `typing_test.py`).
+2. Open a terminal or command prompt.
+3. Navigate to the directory where you saved the file.
+4. Run the script using: `python typing_test.py`
+
+The script will then guide you through the typing test.
