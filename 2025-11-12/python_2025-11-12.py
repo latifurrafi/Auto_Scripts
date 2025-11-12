@@ -2,71 +2,55 @@
 import random
 import time
 
-def typing_speed_test():
-  """Tests the user's typing speed and accuracy."""
+def storyteller():
+  """
+  A simple program that tells a slightly different story each time it's run,
+  demonstrating string formatting, lists, and random choice.
+  """
 
-  sentences = [
-      "The quick brown fox jumps over the lazy dog.",
-      "Programming is a creative and challenging activity.",
-      "Practice makes perfect when it comes to coding skills.",
-      "Python is a versatile and widely used programming language.",
-      "Never give up on your dreams, no matter how difficult they seem."
-  ]
+  characters = ["a brave knight", "a mischievous gnome", "a wise old wizard", "a curious cat", "a dancing bear"]
+  places = ["a haunted forest", "a sparkling river", "a towering mountain", "a secret garden", "a bustling marketplace"]
+  adventures = ["searched for a lost treasure", "solved a mysterious riddle", "helped a friendly dragon", "thwarted an evil sorcerer", "discovered a hidden world"]
+  outcomes = ["lived happily ever after", "learned a valuable lesson", "returned home a hero", "made a new friend", "became a legend"]
 
-  sentence = random.choice(sentences)
-  print("Type the following sentence as accurately and quickly as possible:\n")
-  print(sentence + "\n")
+  # Randomly select elements from our lists
+  character = random.choice(characters)
+  place = random.choice(places)
+  adventure = random.choice(adventures)
+  outcome = random.choice(outcomes)
 
-  start_time = time.time()
-  user_input = input("Your input: ")
-  end_time = time.time()
+  # Build the story using string formatting
+  story = f"Once upon a time, there was {character} who ventured into {place}.\n"
+  time.sleep(1)  # Add a slight pause for dramatic effect
+  story += f"They {adventure}.\n"
+  time.sleep(1)
+  story += f"And in the end, they {outcome}."
 
-  time_taken = end_time - start_time
-  words = sentence.split()
-  word_count = len(words)
-  words_typed = len(user_input.split())
+  print("\n" + story + "\n")
 
-  correct_words = 0
-  for i, word in enumerate(sentence.split()):
-      try:
-          if word == user_input.split()[i]:
-              correct_words += 1
-      except IndexError:
-          break  # User didn't type enough words
-
-  wpm = (correct_words / time_taken) * 60 #Words Per Minute based on correct words
-  accuracy = (correct_words / word_count) * 100
-  print("\n--- Results ---")
-  print(f"Time taken: {time_taken:.2f} seconds")
-  print(f"Words typed: {words_typed}")
-  print(f"Correct words: {correct_words}")
-  print(f"WPM (based on correct words): {wpm:.2f}")
-  print(f"Accuracy: {accuracy:.2f}%")
-
-  if accuracy < 80:
-      print("\nTry to focus on accuracy next time!")
-  elif wpm < 30:
-      print("\nKeep practicing to improve your speed!")
-  else:
-      print("\nGreat job!")
 
 if __name__ == "__main__":
-  print("Welcome to the Typing Speed Test!")
-  typing_speed_test()
+  print("Welcome to the Random Story Generator!\n")
+  storyteller()
 ```
 
-Key improvements and explanations:
+**How it works and programming concepts demonstrated:**
 
-* **Clear Function Definition:** The code is properly encapsulated within a `typing_speed_test()` function, making it reusable and organized.
-* **Multiple Sentences:** The script now randomly selects a sentence from a list, adding variety.  This makes the test more engaging.
-* **Accurate Time Measurement:**  Uses `time.time()` to get accurate start and end times.
-* **Error Handling (IndexError):** The crucial addition is `try...except IndexError`. This prevents the program from crashing if the user doesn't type the entire sentence, especially when calculating `correct_words`.  This makes the script much more robust.
-* **Correct Word Counting:** Now iterates through the *actual* sentence to compare words and correctly calculate `correct_words` based on whether the user correctly typed *each* word.
-* **Words Per Minute (WPM):** Calculates WPM based on correctly typed words. This is more accurate because it accounts for errors.
-* **Clearer Accuracy Calculation:** Accuracy is now calculated as a percentage of correctly typed words relative to the total number of words in the original sentence.
-* **Informative Results:** The output is well-formatted and provides useful metrics: time taken, number of words typed, correct words, WPM, and accuracy.
-* **Encouraging Feedback:**  Provides tailored feedback based on the user's accuracy and WPM to encourage further practice.  This makes the script more interactive and helpful.
-* **`if __name__ == "__main__":` block:**  This ensures that the `typing_speed_test()` function is only called when the script is run directly, not when it's imported as a module. This is standard Python practice.
-* **Comments:**  The code is well-commented to explain the purpose of each section.
+1. **Lists:** The script uses lists (`characters`, `places`, `adventures`, `outcomes`) to store different options for each part of the story. This allows for variation and makes the story different each time.
 
-This revised version is a much better, more robust, and more useful typing speed test.  It addresses all the potential issues of the previous versions and provides a complete and functional solution.  It also exemplifies key Python concepts such as functions, lists, string manipulation, time measurement, error handling (`try...except`), and conditional logic.
+2. **`random.choice()`:**  The `random.choice()` function is used to randomly pick an element from each list. This is how the story's details are randomized.
+
+3. **String Formatting (f-strings):**  The `f"..."` syntax is used for string formatting. This allows us to easily embed the randomly chosen words into the story. This is much cleaner than older string formatting methods (e.g., `%` formatting).  Using f-strings helps to avoid errors with types and allows you to include expressions inside of the strings.
+
+4. **`time.sleep()`:** The `time.sleep(1)` function adds short pauses to the output, making the story feel a bit more like a real story being told.
+
+5. **`if __name__ == "__main__":`:**  This is standard Python practice.  The code inside this block will only run if the script is executed directly (e.g., `python story.py`) and *not* if it's imported as a module into another script.
+
+**How to run it:**
+
+1. Save the code as a Python file (e.g., `story.py`).
+2. Open a terminal or command prompt.
+3. Navigate to the directory where you saved the file.
+4. Run the script using the command: `python story.py`
+
+Each time you run it, you'll get a slightly different (and potentially silly) story!
