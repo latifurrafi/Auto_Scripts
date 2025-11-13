@@ -1,52 +1,59 @@
 ```rust
 fn main() {
-    //  This program demonstrates a compile-time calculation using const generics
-    //  to generate a pre-computed Fibonacci sequence.  This avoids runtime overhead.
-
-    const fn fibonacci<const N: usize>() -> [usize; N] {
-        let mut sequence = [0; N];
-        if N >= 1 {
-            sequence[0] = 1;
-        }
-        if N >= 2 {
-            sequence[1] = 1;
-        }
-        let mut i = 2;
-        while i < N {
-            sequence[i] = sequence[i - 1] + sequence[i - 2];
-            i += 1;
-        }
-        sequence
+    // Demonstrating compile-time array size deduction from const generics.
+    const fn calculate_size(n: usize) -> usize {
+        n * 2 + 1 // Arbitrary calculation, must be const fn
     }
 
-    // Calculate the first 10 Fibonacci numbers at compile time.
-    const FIB10: [usize; 10] = fibonacci::<10>();
+    // We can use a const generic expression in the array type definition.
+    let arr: [i32; calculate_size(5)] = [0; calculate_size(5)]; // size = 11
 
-    println!("First 10 Fibonacci numbers (computed at compile time): {:?}", FIB10);
+    println!("Array size: {}", arr.len());
 
-    // Showing access to the pre-computed values.  No runtime calculation here!
-    println!("The 7th Fibonacci number is: {}", FIB10[6]);
+    //  Showcasing associated constants and trait implementations for const generics
+
+    trait Multiplier<const N: usize> {
+        const FACTOR: i32;
+        fn multiply(&self, value: i32) -> i32;
+    }
+
+    struct MyMultiplier;
+
+    impl Multiplier<5> for MyMultiplier {
+        const FACTOR: i32 = 5;
+
+        fn multiply(&self, value: i32) -> i32 {
+            value * Self::FACTOR
+        }
+    }
+
+
+    let multiplier = MyMultiplier;
+    println!("5 multiplied by 5 is: {}", multiplier.multiply(5));
+
+    // Error example (compilation will fail if uncommented) showing type mismatch.
+    // This highlights that const generics are *actual* type parameters.
+    // let arr2: [i32; calculate_size(6)] = arr; // Type mismatch error: expected `[i32; 13]`, found `[i32; 11]`
+
+    // Using a function to create an array of a size specified by a const generic
+    fn create_array<const N: usize>() -> [i32; N] {
+        [0; N]
+    }
+
+    let my_array: [i32; 7] = create_array();
+    println!("Array of size {} created with const generic function.", my_array.len());
+
 }
 ```
 
-**Explanation:**
+Key features demonstrated:
 
-* **`const fn fibonacci<const N: usize>() -> [usize; N]`**: This defines a `const fn` which is a function that *can* be evaluated at compile time if its inputs are known at compile time.  Crucially, it uses a *const generic* `N` to specify the length of the array to be returned.  `N` is a type-level integer constant.
+1.  **Compile-Time Array Size Deduction:**  The program calculates the array size using a `const fn` called `calculate_size`.  The result of this function is used as a const generic to determine the array's size *at compile time*.  This avoids runtime overhead.
 
-* **`[usize; N]`**: This is a fixed-size array type.  The size is determined by the const generic `N`.  The program generates an array of `usize` (unsigned size) integers.
+2.  **Const Generics as Type Parameters:**  Attempting to assign an array of the wrong size (calculated with a different const generic value) to an array of a defined size results in a compile-time error, demonstrating that const generics are strongly typed and treated as part of the type itself.
 
-* **Compile-Time Calculation:**  Because `fibonacci` is a `const fn` and we call it with a constant value (`10`), the Rust compiler will *evaluate the entire `fibonacci` function at compile time* and embed the resulting array directly into the compiled binary.  This means there's zero runtime cost for computing the Fibonacci sequence.
+3.  **Associated Constants and Trait Implementations with Const Generics:**  The code shows how you can use const generics within trait definitions and implement those traits for specific const generic values.  The `Multiplier` trait uses a const generic to specify a factor, and the `MyMultiplier` struct implements it for a const generic value of `5`, demonstrating the ability to parameterize trait implementations based on compile-time constants.
 
-* **`const FIB10: [usize; 10] = fibonacci::<10>();`**: This declares a `const` variable, `FIB10`, and initializes it with the result of the `fibonacci` function, explicitly specifying `N = 10`.  The compiler *must* evaluate this expression at compile time.
+4.  **Functions with Const Generic Parameters:** The `create_array` function takes a const generic parameter `N` and creates an array of that size. This showcases how you can write generic functions that operate on arrays with sizes determined at compile time.
 
-* **`println!("The 7th Fibonacci number is: {}", FIB10[6]);`**:  Accessing `FIB10[6]` is a simple array lookup.  The value `FIB10` holds has already been pre-computed and stored within the binary, so the output of `7` is computed at compile time, as the array holds the data at compile time, making retrieval no more costly than a read.
-
-**Why is this interesting?**
-
-* **Performance:**  This avoids runtime calculation overhead. In performance-critical applications, pre-computing values at compile time can lead to significant speedups.
-
-* **Type Safety and Size Guarantee:**  Using const generics ensures that the array size is known at compile time, preventing potential runtime errors.  Rust's strong type system verifies that you don't access elements outside the bounds of the array.
-
-* **Expressiveness:** This showcases Rust's ability to perform complex computations during compilation, blurring the lines between compile-time and runtime.  It's a powerful technique for generating code or data structures that are optimized for specific use cases.
-
-* **Uniqueness:**  This combines compile-time evaluation (through `const fn`) with const generics in a relatively concise and practical example.  While the Fibonacci sequence itself isn't unique, the way it's computed and used here demonstrates an elegant application of Rust's features.
+The combination of these features demonstrates the flexibility and power of Rust's const generics, allowing for highly optimized code where array sizes and other properties are known at compile time.  The compile-time checks ensure type safety and prevent runtime errors related to array size mismatches.

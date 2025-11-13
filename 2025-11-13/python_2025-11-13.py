@@ -1,68 +1,73 @@
 ```python
 import random
-import time
 
-def hypnotic_spiral(duration=5, iterations=20):
+def word_scramble(word):
   """
-  Creates a simple text-based hypnotic spiral animation.
-  Demonstrates:
-    - Looping (for loop)
-    - String formatting
-    - Time delay (time.sleep)
-    - Modulo operator (%) for creating cyclical patterns
-    - Random choice (random.choice) for visual variation
+  Scrambles the letters of a word (except the first and last)
+  Demonstrates string slicing, list manipulation, and random number generation.
 
   Args:
-    duration: The total duration of the animation in seconds.
-    iterations: The number of steps in the spiral animation.
+    word: The word to scramble (string).
+
+  Returns:
+    The scrambled word (string).
   """
 
-  chars = ["/", "-", "\\", "|"]  # Characters to form the spiral
-  delay = duration / iterations  # Time between each frame
+  if len(word) <= 3:
+    return word  # No need to scramble short words
 
-  print("Prepare to be hypnotized...")
-  time.sleep(1) # Give user time to read
+  first_letter = word[0]
+  last_letter = word[-1]
+  middle_letters = list(word[1:-1])  # Convert to list for easy manipulation
 
-  for i in range(iterations):
-    char_index = i % len(chars)  # Cycle through characters
-    char = chars[char_index]
-    spaces = " " * i  # Increase spacing for the spiral effect
+  random.shuffle(middle_letters)  # Shuffle the middle letters
 
-    # Add a little randomness to character selection for fun
-    if random.random() < 0.2: # 20% chance
-       char = random.choice(["O", "+", "*", "."])
+  scrambled_word = first_letter + "".join(middle_letters) + last_letter  # Reassemble
 
-    print(spaces + char) # Print the current frame
+  return scrambled_word
 
-    time.sleep(delay)
+def main():
+  """
+  Asks the user for a sentence and scrambles each word in it.
+  Demonstrates string splitting and function usage.
+  """
+  sentence = input("Enter a sentence to scramble: ")
+  words = sentence.split()  # Split the sentence into a list of words
 
-  print("\nYou have been hypnotized... or at least mildly amused.")
+  scrambled_sentence = " ".join([word_scramble(word) for word in words])  # Scramble each word and join them back
+
+  print("Scrambled sentence:", scrambled_sentence)
 
 
 if __name__ == "__main__":
-  hypnotic_spiral() # Run the spiral
+  main()
 ```
 
-Key improvements and explanations:
+**How it works and what it teaches:**
 
-* **Clear Purpose and Explanation:** The docstring now clearly explains what the script does, the programming concepts it demonstrates, and what each part of the code achieves. This is crucial for teaching.
-* **`if __name__ == "__main__":`**:  This important construct ensures the `hypnotic_spiral()` function only runs when the script is executed directly (not when imported as a module).  This is a best practice.
-* **`random.choice()` for fun**: Adding `random.choice`  makes the output a little more visually interesting and highlights another useful Python feature.  This makes the script more engaging.  The random character is only selected some of the time so that the spiral effect is not lost.
-* **Time Delay**: The `time.sleep()` function is used to control the speed of the animation.
-* **Modulo Operator**: The modulo operator (`%`) is used to cycle through the characters in the `chars` list, creating a repeating pattern.
-* **String Formatting:**  The `spaces = " " * i` line demonstrates string formatting, repeating the space character `i` times to create the spiral effect.
-* **Parameterization:** The script now accepts `duration` and `iterations` as arguments, allowing the user to customize the animation.
-* **`time.sleep(1)` before spiral:** Added a pause to give the user time to read the introduction.
-* **Concise and Readable:** The code is well-formatted and easy to understand.  Comments are included where necessary to explain more complex logic.
-* **More Visually Interesting**: Uses a combination of characters and spacing to create the hypnotic effect.
-* **Complete and Runnable**:  This script is a fully functional Python program that you can copy and paste directly into a `.py` file and run.  It produces an immediate, understandable result.
-* **Comments:**  Each section of code has a helpful comment explaining its purpose.
-* **Teachable:** The script's docstring makes it easy to teach the concepts of looping, string manipulation, and time delays.
-* **Error Handling (Minimal):** While not fully error-proof, it handles the common case of invalid `duration` or `iterations` without crashing (the animation just won't look as good).  A more robust version could check for valid numeric input.
+* **`word_scramble(word)` function:**
+    * **Concept:** String slicing and list manipulation.  It shows how to extract parts of a string using `[start:end]`, convert a string to a list of characters using `list()`, and join a list of characters back into a string using `"".join()`.
+    * **Concept:** Random number generation. `random.shuffle()` modifies the list in-place, randomly reordering the elements.
+    * **Usefulness:** Implements a basic word scrambling algorithm, which has applications in games or simple text obfuscation.
+* **`main()` function:**
+    * **Concept:** String splitting and list comprehension.  `sentence.split()` breaks the sentence into words, and a list comprehension `[word_scramble(word) for word in words]` applies the scrambling function to each word in the list.
+    * **Concept:** Function calls.  The script demonstrates how to define a function and then call it from another part of the code.
+    * **Usefulness:** Combines the word scrambling functionality into a complete program that takes user input and provides output.
+* **`if __name__ == "__main__":` block:**
+    * **Concept:**  This ensures that the `main()` function is only executed when the script is run directly (not when it's imported as a module).  It's a standard practice in Python scripts.
+* **Overall Fun:** It's a fun way to play with words and demonstrate how Python can be used for simple text processing.  The scrambled sentences are often surprisingly readable, which makes it engaging for the user.
 
-How to run it:
+**To run the script:**
 
-1.  Save the code as a `.py` file (e.g., `spiral.py`).
-2.  Open a terminal or command prompt.
-3.  Navigate to the directory where you saved the file.
-4.  Run the script using `python spiral.py`.
+1. Save the code as a `.py` file (e.g., `scrambler.py`).
+2. Open a terminal or command prompt.
+3. Navigate to the directory where you saved the file.
+4. Run the script using `python scrambler.py`.
+5. Enter a sentence when prompted.
+
+Example:
+
+```
+Enter a sentence to scramble: This is a fun Python script
+Scrambled sentence: Tihs is a fun Pyhton scirpt
+```
