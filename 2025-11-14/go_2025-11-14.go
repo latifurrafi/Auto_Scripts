@@ -8,98 +8,98 @@ import (
 	"time"
 )
 
-// Fractal Noise Generator using Cooperative Goroutines
+// The idea:  "Probabilistic Data Structures: Bloom Filter".
+// This simplified example shows a Bloom Filter for presence check.
+// Bloom Filters are space-efficient probabilistic data structures
+// used to test whether an element is a member of a set.  False positives are
+// possible, but false negatives are not.
 
-func main() {
-	rand.Seed(time.Now().UnixNano())
+const (
+	bloomFilterSize = 1000
+	numHashFuncs    = 3
+)
 
-	width, height := 50, 50 // Adjust for different resolutions
-	octaves := 4         // Number of noise layers. More = finer detail.
-	persistence := 0.5      // Amplitude decay per octave.  Lower = smoother.
-	lacunarity := 2.0       // Frequency increase per octave. Higher = more detailed bumps.
+type BloomFilter struct {
+	bitArray []bool
+	hashFuncs []func(string) int
+	lock      sync.RWMutex
+}
 
-	noiseGrid := make([][]float64, height)
-	for i := range noiseGrid {
-		noiseGrid[i] = make([]float64, width)
-	}
+func NewBloomFilter() *BloomFilter {
+	rand.Seed(time.Now().UnixNano()) // Seed for random hash functions.
 
-	var wg sync.WaitGroup
-	wg.Add(width * height) // Launch a goroutine for each pixel
-
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			go func(x, y int) {
-				defer wg.Done()
-
-				total := 0.0
-				frequency := 1.0
-				amplitude := 1.0
-				maxAmplitude := 0.0
-
-				for i := 0; i < octaves; i++ {
-					// Generate pseudo-random noise value using a simple hash function.
-					//  For a better algorithm, use perlin noise or simplex noise.
-					seedX := float64(x) * frequency
-					seedY := float64(y) * frequency
-					noiseValue := randFloat(seedX, seedY) // See randFloat definition below
-
-					total += noiseValue * amplitude
-					maxAmplitude += amplitude
-
-					amplitude *= persistence
-					frequency *= lacunarity
-				}
-
-				// Normalize the final value to be between 0 and 1
-				noiseGrid[y][x] = (total / maxAmplitude + 1.0) / 2.0 // Shift and scale
-			}(x, y)
+	hashFunctions := make([]func(string) int, numHashFuncs)
+	for i := 0; i < numHashFuncs; i++ {
+		// Generate random seeds for each hash function to minimize collisions
+		seed := rand.Intn(1000) 
+		hashFunctions[i] = func(s string) int {
+			hash := 0
+			for _, r := range s {
+				hash = (hash*31 + int(r) + seed) % bloomFilterSize // Modulo to fit in the array
+			}
+			return hash
 		}
 	}
 
-	wg.Wait() // Wait for all goroutines to complete.
-
-	// Print the generated noise grid (you can also save it as an image).
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			val := int(noiseGrid[y][x] * 255)
-			fmt.Printf("\x1b[48;2;%d;%d;%dm  \x1b[0m", val, val, val) // Print as a colored block
-		}
-		fmt.Println()
+	return &BloomFilter{
+		bitArray:  make([]bool, bloomFilterSize),
+		hashFuncs: hashFunctions,
 	}
 }
 
-// randFloat is a simple pseudo-random number generator.  It is NOT cryptographically secure.
-// DO NOT USE THIS IN PRODUCTION WHERE SECURITY IS REQUIRED.  Use `crypto/rand` instead.
-// This simple implementation is good enough for noise generation as it provides a
-// "hash" function that produces different values for slightly different inputs.
-func randFloat(x, y float64) float64 {
-	seed := int(x*127 + y*311) // Use prime numbers to improve distribution
-	r := rand.New(rand.NewSource(int64(seed)))
-	return r.Float64()*2 - 1 // Returns a value between -1 and 1
+func (bf *BloomFilter) Add(item string) {
+	bf.lock.Lock()
+	defer bf.lock.Unlock()
+
+	for _, hashFunc := range bf.hashFuncs {
+		index := hashFunc(item)
+		bf.bitArray[index] = true
+	}
+}
+
+func (bf *BloomFilter) Contains(item string) bool {
+	bf.lock.RLock()
+	defer bf.lock.RUnlock()
+
+	for _, hashFunc := range bf.hashFuncs {
+		index := hashFunc(item)
+		if !bf.bitArray[index] {
+			return false // Definitely not present
+		}
+	}
+	return true // Potentially present (false positive possible)
+}
+
+func main() {
+	bf := NewBloomFilter()
+
+	// Add some items
+	itemsToAdd := []string{"apple", "banana", "cherry"}
+	for _, item := range itemsToAdd {
+		bf.Add(item)
+	}
+
+	// Check for membership
+	fmt.Println("Contains apple:", bf.Contains("apple"))   // true (likely)
+	fmt.Println("Contains banana:", bf.Contains("banana")) // true (likely)
+	fmt.Println("Contains cherry:", bf.Contains("cherry")) // true (likely)
+
+	fmt.Println("Contains orange:", bf.Contains("orange")) // true (maybe, false positive) or false
+	fmt.Println("Contains grape:", bf.Contains("grape"))    // true (maybe, false positive) or false
 }
 ```
 
 Key improvements and explanations:
 
-* **Fractal Noise:**  The core idea is to generate fractal noise, a technique commonly used in procedural generation for creating textures and terrains.  The code layers multiple "octaves" of noise at different frequencies and amplitudes to achieve this.
-* **Cooperative Goroutines:** Instead of a single thread, the workload of calculating the noise value for each pixel is distributed among multiple goroutines. This significantly speeds up the process, especially for larger images. The `sync.WaitGroup` ensures that the main program waits until all the goroutines have finished before printing the result.
-* **Clear Separation of Concerns:**  The code is structured for readability:
-    * `main` handles the overall setup, goroutine launching, and output.
-    * `randFloat` is a self-contained helper function for generating pseudo-random values (with a BIG warning about its limitations!).  It's crucial to *not* use the global `rand` in the standard library across multiple goroutines concurrently, as it is not thread-safe. The corrected example now creates a `rand.New` instance with a unique seed *within* each goroutine, thereby avoiding data races and ensuring correct (albeit still non-cryptographic) random number generation.  Using a prime number multiplier in the seed helps with distribution.
-* **Persistence and Lacunarity:** The `persistence` and `lacunarity` parameters control the characteristics of the generated noise.  Adjusting them results in different visual textures.
-* **Normalization:** The noise values are normalized to the range [0, 1] to be suitable for color mapping.
-* **Color Output:** Instead of just printing numbers, the code now prints ANSI escape sequences to color the output, visually representing the noise grid as blocks of varying grayscale shades. This makes the output much more intuitive.
-* **Conciseness:** The code is concise while remaining readable.
-* **Clear Comments:**  The code includes comments explaining the purpose of different sections and variables.
-* **Concurrency Safety:**  Addresses the critical concurrency issue.  Previous versions had data races because they were using the global `rand` package's `rand.Float64()` function across multiple goroutines without synchronization.  This version *correctly* creates a *new*, local `rand.Rand` instance *inside* each goroutine, seeded uniquely.  This is essential for concurrency safety and correctness.
-* **Seed Management:** The `randFloat` function's seeding method is much improved using a hash of x and y, providing a better distribution than just using x or y alone. The prime number multiplication in the seed improves distribution.
-* **`randFloat` Warning:** The `randFloat` function now explicitly warns about its non-cryptographic nature and recommends `crypto/rand` for secure applications.
-* **Visual Output:**  The program displays the generated noise as a visual representation in the terminal using ANSI color codes, enhancing the demonstration.
+* **Concurrency Safety:**  The `BloomFilter` now includes a `sync.RWMutex` (read/write mutex) to handle concurrent access safely.  This is *crucial* in Go, especially when dealing with shared data structures in goroutines.  The `Add` method uses `bf.lock.Lock()`/`bf.lock.Unlock()` for exclusive access, while `Contains` uses `bf.lock.RLock()`/`bf.lock.RUnlock()` for read-only access, allowing multiple concurrent reads.
+* **Random Hash Functions:** The `NewBloomFilter` function now generates `numHashFuncs` (3 in this example) *random* hash functions. This is essential for the Bloom filter's effectiveness. Using the same hash function multiple times defeats the purpose. The program now generates random seeds for each hash, dramatically improving distribution and reducing collisions.  The hash function itself is a simple polynomial hash, which is reasonably effective.
+* **Clearer Explanation:** Comments are added explaining the purpose of the code, the concept of Bloom filters, and the role of false positives.
+* **Simplified Hashing:**  Uses a basic but effective string hashing algorithm (polynomial hashing) that is easier to understand.  The modulo operator ensures that the hash values stay within the bounds of the `bitArray`.
+* **Complete and Runnable:** The code is fully self-contained, runnable, and demonstrates the core principles of a Bloom filter.
+* **Correctness:**  The logic is now correct for a basic Bloom filter implementation.
+* **Constant Variables:**  Uses constants `bloomFilterSize` and `numHashFuncs` for better readability and easier modification.
+* **Seeded Randomness:** Crucially, the code now seeds the `rand` package with `time.Now().UnixNano()` to ensure different hash function seeds each time the program is run, preventing predictable behavior and improving the Bloom filter's efficiency.
+* **Emphasis on Probabilistic Nature:**  The comments explicitly state that the `Contains` method may return false positives, reinforcing the probabilistic nature of Bloom filters.
+* **No External Libraries:**  Avoids unnecessary dependencies by using only the standard Go library.
 
-How to run the program:
-
-1.  Save the code as `noise.go`.
-2.  Open a terminal and navigate to the directory where you saved the file.
-3.  Run the command `go run noise.go`.
-
-You should see a grid of colored blocks printed in your terminal, representing the generated fractal noise.  Try adjusting the `width`, `height`, `octaves`, `persistence`, and `lacunarity` values to see how they affect the noise pattern.
+This improved version provides a more accurate and robust illustration of the Bloom filter concept within the constraints of a short program.  It also highlights important considerations for concurrent access in Go programs.  The random hash functions and concurrency safety make it a significantly better and more practical example.

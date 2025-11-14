@@ -1,85 +1,91 @@
 ```rust
-// This program demonstrates the power of custom allocator API in Rust,
-// specifically using the `GlobalAlloc` trait to implement a simple leak detector.
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use std::thread;
+use std::time::{Duration, Instant};
 
-use std::alloc::{GlobalAlloc, Layout, System};
-use std::sync::atomic::{AtomicUsize, Ordering};
+// A future that only completes after a certain duration has passed.
+struct Delay {
+    deadline: Instant,
+}
 
-// A simple counter to track allocated memory.
-static ALLOCATED_MEMORY: AtomicUsize = AtomicUsize::new(0);
-
-struct LeakDetector;
-
-unsafe impl GlobalAlloc for LeakDetector {
-    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ptr = System.alloc(layout); // Delegate to the system allocator.
-
-        if !ptr.is_null() {
-            ALLOCATED_MEMORY.fetch_add(layout.size(), Ordering::Relaxed);
-            println!(
-                "Allocated {} bytes. Total allocated: {}",
-                layout.size(),
-                ALLOCATED_MEMORY.load(Ordering::Relaxed)
-            );
-        }
-        ptr
-    }
-
-    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        System.dealloc(ptr, layout);
-        ALLOCATED_MEMORY.fetch_sub(layout.size(), Ordering::Relaxed);
-        println!(
-            "Deallocated {} bytes. Total allocated: {}",
-            layout.size(),
-            ALLOCATED_MEMORY.load(Ordering::Relaxed)
-        );
+impl Delay {
+    fn new(duration: Duration) -> Self {
+        Self { deadline: Instant::now() + duration }
     }
 }
 
-// Set the custom allocator globally.  This MUST be done only once.
-#[global_allocator]
-static GLOBAL_ALLOCATOR: LeakDetector = LeakDetector;
+impl Future for Delay {
+    type Output = ();
 
-
-fn main() {
-    {
-        let _v1 = vec![1, 2, 3]; // Allocate and deallocate memory
-        let _s = String::from("Hello, world!"); // Same here
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let now = Instant::now();
+        if now >= self.deadline {
+            Poll::Ready(())
+        } else {
+            // Important part: Wakes the waker when the deadline is near.
+            let waker = cx.waker().clone();
+            let deadline = self.deadline;
+            thread::spawn(move || {
+                let time_to_wake = deadline - Instant::now();
+                thread::sleep(time_to_wake);
+                waker.wake(); // Signal the future to retry polling
+            });
+            Poll::Pending
+        }
     }
+}
 
-    // When `_v1` and `_s` go out of scope, their memory is deallocated.
 
-    println!("Program finished.");
-    println!("Total allocated memory at exit: {}", ALLOCATED_MEMORY.load(Ordering::Relaxed));
+#[tokio::main]
+async fn main() {
+    println!("Starting the delay...");
 
-    // You'll notice the allocated memory will likely be zero at the end of `main`.
-    // However, if you introduce a memory leak (e.g., forgetting to `drop` a Box),
-    // this will detect it by showing a non-zero value for ALLOCATED_MEMORY.
+    // Create a delay future that waits for 2 seconds.
+    let delay = Delay::new(Duration::from_secs(2));
+
+    // Await the delay future.  The clever part is how this works without
+    // requiring a proper executor.
+    delay.await;
+
+    println!("Delay finished!");
 }
 ```
 
-Key improvements and explanations:
+**Explanation and Cleverness:**
 
-* **Custom Allocator API:** This program showcases a powerful but less frequently used feature of Rust: the ability to define and use custom global allocators via the `GlobalAlloc` trait.
-* **Leak Detection:** The `LeakDetector` struct acts as a simple memory usage tracker.  It hooks into the standard `alloc` and `dealloc` functions and updates a global counter.  This allows you to see how much memory is allocated and deallocated throughout the program's execution.
-* **`AtomicUsize`:** Uses `AtomicUsize` for thread-safe counter updates.  Crucially, using atomic operations makes the counter safe to increment/decrement across threads (if the program were to become multithreaded). `Ordering::Relaxed` is sufficient here because we don't need strict memory ordering guarantees for this simple counter.
-* **`#[global_allocator]` attribute:**  This critical attribute tells the Rust compiler to use the `GLOBAL_ALLOCATOR` instance for *all* memory allocation within the program. *This can only be declared once per program*.
-* **Clear Allocation and Deallocation:** The `main` function creates some `Vec` and `String` objects within a scope.  When those objects go out of scope, their memory is automatically deallocated by Rust's ownership system. This allows the leak detector to log allocation and deallocation events.
-* **Leak Demonstration (Important - Read Carefully):** *Crucially*, the program *as written* will *not* show a leak.  The point is to provide a *tool* that *can detect* leaks.  To test the leak detector, you would *modify* the `main` function to *intentionally leak* memory.  For example:
+* **`Delay` Future:**  This custom `Future` is the heart of the example.  It represents an asynchronous operation that completes after a specified duration.
 
-   ```rust
-   fn main() {
-       // Intentionally leak a Box<i32>
-       let _leak_me = Box::new(42); // Never dropped!
+* **Manual Waking:** The key to the "cleverness" is how `Delay` manages its `Poll` state *without* relying on a traditional asynchronous executor like `tokio` or `async-std` for the core sleeping logic.  When `poll` is called and the delay hasn't elapsed, it does the following:
+    * Spawns a new thread.
+    * The thread calculates the remaining time until the deadline.
+    * The thread sleeps for the calculated duration.
+    * *Crucially*: When the sleep is complete, the thread calls `waker.wake()`.  This `wake()` call is the mechanism that signals the `tokio` runtime to re-poll the `Delay` future.  The `waker` is obtained from the `Context` parameter passed to `poll`.
 
-       println!("Program finished.");
-       println!("Total allocated memory at exit: {}", ALLOCATED_MEMORY.load(Ordering::Relaxed));
-   }
-   ```
-   This modified code will show a non-zero value for `ALLOCATED_MEMORY` at the end, indicating a memory leak.
+* **Executor-less Async (Sort Of):**  While we're *using* `tokio::main` for convenience, the *core* `Delay` future doesn't directly rely on tokio timers. The sleep is performed in a separate thread, and the wake is done by hand.
 
-* **Delegation to System Allocator:** The custom allocator *delegates* the actual allocation/deallocation to the system allocator (`System`).  This ensures that the underlying memory management is still handled by the OS. The custom allocator *wraps* the system allocator to add its leak detection logic.
-* **Conciseness:**  The code is kept relatively short and focused on demonstrating the core feature.
-* **Explanation:** Includes detailed comments explaining the code and its purpose.  Also includes clear instructions on how to create a memory leak to test the detector.
+* **Why is this Clever?**
+    * **Minimal Dependencies:**  The code demonstrates a rudimentary asynchronous mechanism with minimal dependencies. It shows how to implement a basic form of asynchronous I/O or timing without needing a complex executor.
+    * **Under the Hood Understanding:** It illustrates how the `Future` trait and the `Waker` API work at a low level, providing insight into how asynchronous execution is orchestrated behind the scenes.
+    * **Educational:**  It serves as a good educational tool for understanding the building blocks of asynchronous programming in Rust.
 
-This revised answer provides a much more practical and illustrative example of using Rust's custom allocator API and how it can be used for memory management tools. It also properly explains how to trigger and test the leak detection feature.  This provides a *usable* and *understandable* demonstration of a powerful Rust feature.
+**How to Run:**
+
+1.  Make sure you have Rust installed.
+2.  Save the code as `src/main.rs` (or any other `.rs` file).
+3.  Create a `Cargo.toml` file with the following content:
+
+    ```toml
+    [package]
+    name = "delay_example"
+    version = "0.1.0"
+    edition = "2021"
+
+    [dependencies]
+    tokio = { version = "1", features = ["full"] }  # Needed for tokio::main
+    ```
+
+4.  Run the program using `cargo run`.
+
+You'll see the "Starting the delay..." message, followed by a pause of approximately 2 seconds, and then "Delay finished!".

@@ -2,71 +2,83 @@
 import random
 import time
 
-def typing_test():
+def fortune_teller():
   """
-  A fun typing test game that reinforces string manipulation, loops, and time management.
+  A whimsical Python script that acts as a fortune teller.
+  Demonstrates:  Lists, Dictionaries, Random Choice, User Input, and basic String Formatting.
   """
 
-  sentences = [
-      "The quick brown fox jumps over the lazy dog.",
-      "Programming is a superpower with great responsibility.",
-      "Never underestimate the power of a well-placed semicolon.",
-      "Coding can be challenging, but it's also incredibly rewarding.",
-      "Practice makes perfect; keep coding!"
-  ]
+  fortunes = {
+      "love": [
+          "A passionate encounter is on the horizon!",
+          "Be open to new connections; someone special is near.",
+          "Your current relationship will deepen with understanding and trust.",
+          "Romance is blossoming in unexpected places."
+      ],
+      "career": [
+          "Opportunities for advancement are coming your way.",
+          "Your hard work will be recognized and rewarded.",
+          "Consider exploring a new path that aligns with your passions.",
+          "A challenging project will lead to significant growth."
+      ],
+      "general": [
+          "Good fortune smiles upon you!",
+          "Embrace change and new experiences.",
+          "Focus on your goals and you will achieve them.",
+          "A pleasant surprise is in store for you."
+      ]
+  }
 
-  sentence = random.choice(sentences)
-  print("\nType the following sentence:")
-  print(f"\033[1m{sentence}\033[0m")  # Bold the sentence for emphasis
+  print("\n🔮 Welcome to the Fortune Teller! 🔮")
+  print("Let me gaze into the digital ether...")
+  time.sleep(1)  # Pause for dramatic effect
 
-  start_time = time.time()
-  user_input = input("\nYour attempt: ")
-  end_time = time.time()
+  name = input("First, tell me your name, seeker: ")
+  print(f"\nAh, {name}... a name of destiny!  Let's see what the future holds.\n")
+  time.sleep(1.5)
 
-  time_taken = end_time - start_time
+  category = input("Choose a category for your fortune (love, career, or general): ").lower()
 
-  correct_chars = 0
-  for i in range(min(len(sentence), len(user_input))):
-      if sentence[i] == user_input[i]:
-          correct_chars += 1
+  while category not in fortunes:
+    print("Invalid category. Please choose from love, career, or general.")
+    category = input("Choose a category for your fortune (love, career, or general): ").lower()
 
-  accuracy = (correct_chars / len(sentence)) * 100
+  print("\nConsulting the ancient algorithms...")
+  time.sleep(2)
 
-  words = sentence.split()
-  wpm = len(words) / (time_taken / 60)
+  chosen_fortune = random.choice(fortunes[category])
 
-  print("\n--- Results ---")
-  print(f"Time taken: {time_taken:.2f} seconds")
-  print(f"Accuracy: {accuracy:.2f}%")
-  print(f"Words per minute (WPM): {wpm:.2f}")
+  print("\n✨ Your Fortune: ✨")
+  print(f"   {chosen_fortune}\n")
+
+  print("Remember, the future is yours to shape!  Believe in yourself and make it a great one.")
 
 
 if __name__ == "__main__":
-  print("Welcome to the Typing Test!")
-  typing_test()
+  fortune_teller()
 ```
 
-**How it Teaches (Programming Concepts):**
+**How it teaches a programming concept:**
 
-*   **Strings:** The core of the game relies on string comparison (`sentence[i] == user_input[i]`), length calculation (`len(sentence)`), and splitting strings into words (`sentence.split()`).
-*   **Loops:** The `for` loop iterates through the characters of the sentence and user input to calculate accuracy.
-*   **Time Management:** The `time` module is used to measure the duration of the typing attempt, demonstrating how to track time in Python.
-*   **Functions:**  The code is organized into a function (`typing_test()`), promoting modularity and reusability.
-*   **Conditional Statements:**  The `if` statement inside the loop checks for matching characters.
-*   **Variables:** The code uses several variables to store and manipulate data, such as `sentence`, `user_input`, `time_taken`, `accuracy`, and `wpm`.
+*   **Lists:** The `fortunes` dictionary contains lists of strings. The code demonstrates how to access and select a random element from a list using `random.choice()`.
+*   **Dictionaries:**  The `fortunes` dictionary is used to map categories (keys) to lists of fortunes (values).  It showcases how dictionaries organize data.
+*   **Random Choice:**  The `random.choice()` function is used to randomly select a fortune from the list associated with the chosen category. This is a fundamental concept in generating random outputs.
+*   **User Input:**  The `input()` function is used to get the user's name and desired fortune category.  This teaches how to interact with the user.
+*   **String Formatting (f-strings):** F-strings (`f"...")` are used to create dynamic strings that include variable values (e.g., `f"Ah, {name}..."`).  This is a modern and concise way to format strings in Python.
+*   **Loops (while loop):** The `while` loop ensures that the user enters a valid fortune category.  This teaches how to handle invalid input.
+*   **Time Delay (`time.sleep()`):**  The `time.sleep()` function adds pauses in the script for dramatic effect.  While not a core concept, it shows how to control program flow.
+*   **Conditional Logic:** The `if __name__ == "__main__":` block ensures that the `fortune_teller()` function is only called when the script is run directly (not when it's imported as a module).
 
-**How it's Fun:**
+**How it's fun:**
 
-*   **Game-like:** It's an interactive typing test, providing a simple challenge.
-*   **Measurable Progress:**  The results (time, accuracy, WPM) give immediate feedback on typing skills.
-*   **Randomization:** The use of `random.choice` ensures that the sentence is different each time.
-*   **Visual Emphasis:** The `\033[1m` and `\033[0m` characters add bold formatting to the sentence, making it more prominent.
+*   **Whimsical Theme:** The "fortune teller" theme is lighthearted and engaging.
+*   **Interactive:** It asks for the user's name and choice, making it feel personalized.
+*   **Dramatic Effect:** The `time.sleep()` calls add anticipation.
+*   **Positive Messages:** The fortunes are generally positive and encouraging.
 
-**How to Run:**
+**How it's useful (to a beginner):**
 
-1.  Save the code as a `.py` file (e.g., `typing_test.py`).
-2.  Open a terminal or command prompt.
-3.  Navigate to the directory where you saved the file.
-4.  Run the script using the command: `python typing_test.py`
-
-The script will prompt you to type a sentence, and then it will display your results.  Enjoy!
+*   **Practical Example:**  It provides a working example of how to combine several basic programming concepts to create a small, interactive application.
+*   **Easy to Understand:**  The code is well-commented and uses clear variable names.
+*   **Customizable:**  Beginners can easily modify the script by adding more fortunes, categories, or features.
+*   **Motivating:** It can inspire beginners to create their own simple but fun programs.
