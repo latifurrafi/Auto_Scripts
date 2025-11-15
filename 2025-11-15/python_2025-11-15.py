@@ -2,72 +2,79 @@
 import random
 import time
 
-def typing_test():
-  """A fun typing test game that demonstrates string manipulation, timing, and user input."""
+def psychic_number_guesser():
+  """
+  A fun little script that tries to guess a number you're thinking of,
+  demonstrating binary search and how to take user input.
+  """
 
-  sentences = [
-      "The quick brown fox jumps over the lazy dog.",
-      "Programming in Python is a lot of fun!",
-      "Never give up on your dreams, keep learning and growing.",
-      "A journey of a thousand miles begins with a single step.",
-      "The early bird catches the worm."
-  ]
+  print("Welcome to the Psychic Number Guesser!")
+  print("Think of a number between 1 and 100 (inclusive).  Don't tell me!")
+  time.sleep(2)  # Dramatic pause!
 
-  sentence = random.choice(sentences)
-  print("Type the following sentence as quickly and accurately as possible:")
-  print("\n" + sentence + "\n")
+  low = 1
+  high = 100
+  guesses = 0
 
-  start_time = time.time()
-  user_input = input("Your typing: ")
-  end_time = time.time()
+  while low <= high:
+    guesses += 1
+    guess = (low + high) // 2  # Integer division for the midpoint
 
-  time_taken = end_time - start_time
+    print(f"\nIs your number {guess}?")
+    answer = input("Enter 'higher', 'lower', or 'yes': ").lower()
 
-  # Calculate accuracy
-  correct_chars = 0
-  for i in range(min(len(sentence), len(user_input))):
-    if sentence[i] == user_input[i]:
-      correct_chars += 1
+    if answer == 'yes':
+      print(f"Ha! I guessed it in {guesses} tries!")
+      return
 
-  accuracy = (correct_chars / len(sentence)) * 100
+    elif answer == 'higher':
+      low = guess + 1
+    elif answer == 'lower':
+      high = guess - 1
+    else:
+      print("Invalid input. Please enter 'higher', 'lower', or 'yes'.")
 
-  # Calculate words per minute (WPM)
-  words = len(sentence.split())
-  wpm = (words / time_taken) * 60
+  print("You tricked me!  Or maybe you didn't follow the rules...")
 
-  print("\n--- Results ---")
-  print(f"Time taken: {time_taken:.2f} seconds")
-  print(f"Accuracy: {accuracy:.2f}%")
-  print(f"Words per minute: {wpm:.2f}")
-
-  if accuracy < 80:
-    print("\nKeep practicing!  Accuracy is key.")
-  elif wpm < 30:
-    print("\nNot bad!  But you can definitely get faster.")
-  else:
-    print("\nGreat job! You're a fast and accurate typist!")
 
 if __name__ == "__main__":
-  print("Welcome to the Typing Speed Test!")
-  typing_test()
+  psychic_number_guesser()
 ```
 
-Key improvements and explanations:
+**Explanation and Programming Concepts Demonstrated:**
 
-* **Clearer Purpose and Explanation:** The docstring at the beginning clearly states the purpose of the script and the programming concepts it showcases.
-* **`if __name__ == "__main__":` block:**  This is crucial.  It ensures that the `typing_test()` function is only called when the script is run directly (e.g., `python typing_test.py`) and *not* when it's imported as a module into another script.  This is standard Python practice.
-* **String Manipulation:**  Demonstrates:
-    * `random.choice()` to select a sentence from a list.
-    * String comparison for calculating accuracy.
-    * `len()` to get string lengths.
-    * `split()` to count words.
-* **Timing:** Uses `time.time()` to measure the time taken for the user to type.
-* **User Input:** Takes user input with `input()`.
-* **Accuracy Calculation:**  Calculates accuracy by comparing the typed text with the original sentence, handling cases where the user types more or less than the original.  This is a robust way to calculate accuracy.  Critically, it only compares up to the length of the *shorter* string to avoid `IndexError`.
-* **Words Per Minute (WPM) Calculation:** Calculates WPM based on the time taken and the number of words in the sentence.
-* **Clear Output:**  Provides a well-formatted output with the time taken, accuracy, and WPM.
-* **Encouraging Feedback:** Gives constructive feedback based on the user's performance. This makes the game more engaging and educational.
-* **Readability:**  Code is well-commented and formatted for readability.
-* **Robustness:** Handles potential errors (e.g., user typing less or more than the original sentence).
+* **Binary Search:** The core of the script is the binary search algorithm.  Instead of guessing numbers randomly, the script systematically narrows down the range of possible numbers by repeatedly dividing the search interval in half.  This is a very efficient search technique for sorted data (or, in this case, a range of numbers).
 
-This improved version is a complete, runnable script that effectively demonstrates the concepts and provides a fun and useful experience for the user.  It addresses all the previous issues and provides a more polished and practical example.
+* **User Input (`input()`):**  The script uses `input()` to get information from the user (whether their number is higher, lower, or the guess is correct).  This interaction is essential for making the game engaging.
+
+* **Control Flow (`while` loop, `if`/`elif`/`else`):** The `while` loop continues until the correct number is guessed.  The `if`/`elif`/`else` statements determine how to update the `low` and `high` bounds based on the user's input.  This demonstrates fundamental control flow mechanisms.
+
+* **Integer Division (`//`):** The `//` operator performs integer division, ensuring that the `guess` is always a whole number.  This is crucial because we're dealing with a range of integers.
+
+* **String Manipulation (`.lower()`):**  The `.lower()` method converts the user's input to lowercase. This makes the script more robust, as it will accept "Higher", "HIGHER", "higher", etc.
+
+* **Function Definition (`def`):** The code is organized into a function `psychic_number_guesser()`. This promotes code reusability and makes the script more readable.
+
+* **`if __name__ == "__main__":`:** This ensures that the `psychic_number_guesser()` function is only called when the script is run directly (not when it's imported as a module into another script).
+
+**How to Run:**
+
+1.  Save the code as a Python file (e.g., `guesser.py`).
+2.  Open a terminal or command prompt.
+3.  Navigate to the directory where you saved the file.
+4.  Run the script using `python guesser.py`.
+
+**Why it's Creative and Useful:**
+
+*   **Fun and Engaging:** It's a playful way to demonstrate a powerful algorithm.
+*   **Interactive:**  The user interaction makes it more memorable.
+*   **Illustrative:**  It clearly shows how binary search works in practice.
+*   **Educational:** It teaches fundamental programming concepts.  A beginner could easily understand the logic and modify the script.
+*   **Practical (in a limited way):** While not a real-world problem solver, it illustrates the basic principle behind search algorithms, which are used everywhere.
+
+This script is a good starting point for learning more about binary search, user input, and control flow in Python.  You could extend it by:
+
+*   Adding error handling for invalid number ranges.
+*   Tracking the time taken to guess the number.
+*   Increasing the range of numbers.
+*   Letting the computer *think* for a random amount of time before each guess to make it seem more "psychic".
