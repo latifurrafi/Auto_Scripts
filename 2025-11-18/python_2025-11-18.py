@@ -1,65 +1,80 @@
 ```python
 import random
+import time
 
-def story_generator():
+def typing_speed_test():
   """
-  Generates a short, silly story using random words.
-  Demonstrates the use of lists and string formatting.
+  This script tests your typing speed and accuracy using a random quote.
+  It's a fun way to learn about strings, time, and input in Python.
   """
 
-  nouns = ["cat", "dog", "tree", "car", "cloud", "pizza"]
-  verbs = ["jumped", "sang", "danced", "ate", "slept", "flew"]
-  adjectives = ["fluffy", "happy", "sparkly", "smelly", "wobbly", "loud"]
-  adverbs = ["quickly", "slowly", "happily", "sadly", "loudly", "silently"]
-  places = ["park", "moon", "kitchen", "ocean", "school", "desert"]
+  quotes = [
+    "The quick brown fox jumps over the lazy dog.",
+    "Programming is the art of telling computers what to do.",
+    "Coding is my superpower.",
+    "Practice makes perfect.",
+    "Never give up on your dreams."
+  ]
 
-  # Choose random words
-  noun1 = random.choice(nouns)
-  verb1 = random.choice(verbs)
-  adjective1 = random.choice(adjectives)
-  adverb1 = random.choice(adverbs)
-  place1 = random.choice(places)
+  quote = random.choice(quotes)
+  print("Type the following quote as fast and accurately as possible:\n")
+  print(quote)
 
-  noun2 = random.choice(nouns)
-  verb2 = random.choice(verbs)
-  adjective2 = random.choice(adjectives)
+  input("\nPress Enter to start...")  # Wait for the user to get ready
+  start_time = time.time()
 
+  user_input = input("\nStart typing: ")
 
-  # Construct the story
-  story = f"Once upon a time, a {adjective1} {noun1} {verb1} {adverb1} in the {place1}.  " \
-          f"Suddenly, a {adjective2} {noun2} appeared and {verb2}!  " \
-          f"The end!"
+  end_time = time.time()
+  time_taken = end_time - start_time
 
-  return story
+  # Calculate words per minute (WPM)
+  word_count = len(quote.split())
+  wpm = (word_count / time_taken) * 60
 
-# Run the story generator and print the result
-print(story_generator())
+  # Calculate accuracy
+  correct_chars = sum(1 for a, b in zip(quote, user_input) if a == b)
+  accuracy = (correct_chars / len(quote)) * 100
+
+  print("\n--- Results ---")
+  print(f"Time taken: {time_taken:.2f} seconds")
+  print(f"Words per minute (WPM): {wpm:.2f}")
+  print(f"Accuracy: {accuracy:.2f}%")
+
+  if accuracy < 90:
+    print("\nKeep practicing for better accuracy!")
+  elif wpm < 30:
+    print("\nYou can type faster! Keep practicing!")
+  else:
+    print("\nGreat job! You're a typing wizard!")
+
+if __name__ == "__main__":
+  typing_speed_test()
 ```
 
-**Explanation and Programming Concepts Demonstrated:**
+**How it teaches programming concepts:**
 
-1. **Lists:**  The script uses several lists (`nouns`, `verbs`, `adjectives`, `adverbs`, `places`) to store collections of words.  Lists are a fundamental data structure in Python, allowing you to organize and access multiple items using indices.
+*   **Strings:**  Uses strings for quotes and user input, demonstrating string manipulation.
+*   **Randomness:**  Uses the `random` module to select a random quote.
+*   **Time:**  Uses the `time` module to measure the time taken for typing.  This introduces the concept of tracking time in programs.
+*   **Input/Output:** Uses `input()` to get user input and `print()` to display information.
+*   **Loops (Implicit):** The `zip` function combined with `sum` provides a concise way to iterate through two strings and count matching characters.
+*   **Conditional Statements (if/else):**  Uses `if/else` statements to provide feedback based on typing speed and accuracy.
+*   **Functions:**  Organizes the code into a `typing_speed_test()` function, promoting modularity and reusability.
+*   **String Formatting:** Uses f-strings for clear output with formatted numbers (e.g., `:.2f` for two decimal places).
 
-2. **`random.choice()`:** This function from the `random` module is used to randomly select an element from each list.  This introduces an element of unpredictability and fun.
+**How it's fun:**
 
-3. **String Formatting (f-strings):**  The script uses f-strings (formatted string literals) to construct the story.  f-strings provide a concise and readable way to embed variables directly within a string. The `{}` placeholders are replaced with the values of the variables inside them.  This is much cleaner than older methods of string concatenation.
+*   **Interactive:**  The user actively participates in the test.
+*   **Measurable Results:** Provides concrete metrics (WPM, accuracy) that users can try to improve.
+*   **Encouraging Feedback:** Gives positive reinforcement for good performance and motivates improvement.
+*   **Real-World Application:**  Tests a skill that is useful in many contexts.
 
-4. **Functions:** The code is encapsulated within a function `story_generator()`. Functions allow you to group related code together, making your code more organized and reusable. This function takes no arguments and returns a string (the generated story).
+**How to run it:**
 
-5. **String Concatenation (Implied):** While using f-strings primarily, there's implicit string concatenation with the `+` operators to join the different sentences together.
-
-**How to Run the Script:**
-
-1.  Save the code as a `.py` file (e.g., `story.py`).
+1.  Save the code as a `.py` file (e.g., `typing_test.py`).
 2.  Open a terminal or command prompt.
 3.  Navigate to the directory where you saved the file.
-4.  Run the script using the command: `python story.py`
+4.  Run the script using `python typing_test.py`.
 
-Each time you run the script, it will generate a different, randomly-generated, short story.
-
-**Why this is useful and educational:**
-
-*   **Beginner-Friendly:**  The code is relatively simple and easy to understand, making it suitable for beginners learning Python.
-*   **Practical Application:**  It demonstrates how lists, random number generation, and string formatting can be combined to create something fun and engaging.
-*   **Concept Reinforcement:** It reinforces the concepts of data structures, string manipulation, and function definitions.
-*   **Customizable:** The user can easily add more words to the lists to expand the possibilities and make the stories even more creative. The user can modify the structure of the story by changing the string formatting within the `story` variable.
+The script will then guide you through the typing test.  Enjoy!
