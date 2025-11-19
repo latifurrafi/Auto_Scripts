@@ -1,71 +1,40 @@
 ```rust
-// This program showcases the "const fn" feature in Rust, allowing us to
-// perform computations at compile time and embed the result directly into
-// the compiled binary, leading to potentially faster runtime execution.
-
-const fn factorial(n: u32) -> u32 {
-    match n {
-        0 => 1,
-        _ => n * factorial(n - 1),
-    }
-}
-
-// Compute the factorial of 6 at compile time.
-// This value is known and available during compilation.
-const COMPILE_TIME_FACTORIAL: u32 = factorial(6);
+// This program demonstrates the power of move semantics and lifetimes
+// combined with a clever use of closures.
 
 fn main() {
-    println!("The factorial of 6 (computed at compile time) is: {}", COMPILE_TIME_FACTORIAL);
+    let mut data = String::from("Initial Value");
 
-    // Demonstrate the difference by computing factorial at runtime:
-    let runtime_factorial = factorial_runtime(6);
-    println!("The factorial of 6 (computed at runtime) is: {}", runtime_factorial);
-}
+    // `updater` is a closure that takes a mutable reference to a String,
+    // appends to it, and returns a new String that *borrows* from the original.
+    // This borrowing is crucial to demonstrate lifetimes.
+    let updater = |input: &mut String| -> &str {
+        input.push_str(" - Updated!");
+        input.as_str() // Returns a slice (&str) that borrows from `input`
+    };
 
+    // The `process_data` function takes ownership of the String.
+    fn process_data(mut s: String, update_func: impl Fn(&mut String) -> &str) {
+        // `updated_data` borrows from `s` and its lifetime is tied to `s`.
+        let updated_data = update_func(&mut s);
 
-fn factorial_runtime(n: u32) -> u32 { // No 'const' here!
-    match n {
-        0 => 1,
-        _ => n * factorial_runtime(n - 1),
+        println!("Processed data: {}", s);
+        println!("Borrowed data: {}", updated_data);
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    // `data` is moved into `process_data`.  It's no longer valid after this line.
+    process_data(data, updater);
 
-    #[test]
-    fn test_factorial() {
-        assert_eq!(factorial(0), 1);
-        assert_eq!(factorial(1), 1);
-        assert_eq!(factorial(5), 120);
-        assert_eq!(factorial(6), 720);
-    }
+    // This line would cause a compile-time error because `data` has been moved.
+    // println!("Data after move: {}", data); // Error: use of moved value 'data'
 }
 ```
 
-Key improvements and explanations:
+Key features demonstrated:
 
-* **`const fn factorial(n: u32) -> u32`**:  This is the heart of the example. `const fn` defines a function that *can* be evaluated at compile time if its arguments are known at compile time.  Crucially, it *can also* be evaluated at runtime if its arguments are only known at runtime.
-* **`const COMPILE_TIME_FACTORIAL: u32 = factorial(6);`**: This line is where the magic happens.  Since `6` is a known constant, the `factorial` function is executed *during compilation*, and the resulting value (720) is embedded directly into the compiled executable as the value of `COMPILE_TIME_FACTORIAL`. This makes retrieving that value extremely fast at runtime.
-* **`factorial_runtime` function**:  Crucially, to demonstrate the difference, I've included a *separate* `factorial_runtime` function that is identical in implementation *except* it doesn't have the `const` keyword.  This forces the factorial calculation to happen at runtime, so you can compare the performance and see the difference.
-* **`println!` messages**: The output clearly indicates that the `COMPILE_TIME_FACTORIAL` was computed at compile time.
-* **Clear explanation in comments**: The comments explain the purpose of the code and the benefits of compile-time evaluation.
-* **Tests**: Includes unit tests to verify the `factorial` function.
-* **No `unsafe` code**: This is important for a safe and educational example.
-* **Unique and Clever**: Using `const fn` with factorial is a relatively simple but effective way to illustrate the power of compile-time computation. It is a concrete example with a readily understandable result.
+* **Move Semantics:** The `data` String is moved into the `process_data` function. After the call, `data` is no longer valid in `main`.  This prevents double frees and data races.  Trying to use `data` after the move would result in a compile-time error.
+* **Borrowing and Lifetimes:** The closure `updater` takes a mutable reference to the `String` and returns a borrowed slice (`&str`). This illustrates how Rust's borrow checker ensures that the borrowed slice does not outlive the String it refers to. The lifetime of `updated_data` within `process_data` is tied to the lifetime of the `s` String.
+* **Closures:**  The `updater` is a closure that captures the current environment. The closure's return type being a borrow is important.  If it returned an owned `String`, there wouldn't be a lifetime dependency on the input.
+* **Compile-Time Safety:** The code purposefully includes a commented-out line that *would* cause a compile-time error. This highlights how Rust's compiler proactively prevents common memory management errors.
 
-How to run the code:
-
-1. Save the code as `factorial.rs`.
-2. Compile it using: `rustc factorial.rs`
-3. Run the executable: `./factorial`
-
-You'll see output similar to:
-
-```
-The factorial of 6 (computed at compile time) is: 720
-The factorial of 6 (computed at runtime) is: 720
-```
-
-While the output *looks* the same, the important thing is that the *first* result (from `COMPILE_TIME_FACTORIAL`) was calculated before the program even started running! You can verify this by looking at the generated assembly code (using a tool like `objdump` or `cargo-asm`). You should see the value 720 directly embedded as a constant.
+The program elegantly showcases how Rust's ownership, borrowing, and lifetimes system work together to ensure memory safety and prevent common programming errors at compile time.  The use of a closure to manipulate a String and return a borrowed slice is a clean and illustrative example.
