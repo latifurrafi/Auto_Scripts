@@ -2,80 +2,83 @@
 import random
 import time
 
-def typing_test():
+def typing_speed_test():
   """
-  This script presents a random sentence and measures how long it takes the user
-  to type it correctly.  It teaches the concepts of:
-
-    - String manipulation (comparison)
-    - Timing (using time.time())
-    - Random choice from a list
-    - User input
-
-  It's also a fun, mini typing game!
+  A fun little script that tests your typing speed and teaches the concept
+  of timing code execution using the `time` module.
   """
 
-  sentences = [
+  phrases = [
       "The quick brown fox jumps over the lazy dog.",
       "Programming is fun and rewarding.",
-      "Never underestimate the power of a well-written function.",
-      "Practice makes perfect, especially in coding.",
-      "A journey of a thousand miles begins with a single step."
+      "Never underestimate the power of a good cup of coffee.",
+      "Algorithms are the building blocks of software.",
+      "Practice makes perfect, so keep on coding!"
   ]
 
-  sentence = random.choice(sentences)
+  phrase = random.choice(phrases)
+  print("\nGet ready! Type the following phrase as quickly and accurately as possible:\n")
+  print(phrase)
+  print("\nPress Enter to start the timer...")
+  input()  # Wait for user to press Enter
 
-  print("Type the following sentence as quickly as possible:")
-  print("-" * 40)
-  print(sentence)
-  print("-" * 40)
-  input("Press Enter to start!")
+  start_time = time.time()  # Record the start time
 
-  start_time = time.time()
-  user_input = input("Your sentence: ")
-  end_time = time.time()
+  user_input = input("\nStart typing: ")
 
-  time_taken = end_time - start_time
+  end_time = time.time()  # Record the end time
 
-  if user_input == sentence:
-    print("Correct!")
-    words = sentence.split()
-    num_words = len(words)
-    wpm = round(num_words / (time_taken / 60)) # Words per minute
-    print(f"You took {time_taken:.2f} seconds.  You typed at {wpm} words per minute.")
+  elapsed_time = end_time - start_time  # Calculate the elapsed time
+
+  # Calculate words per minute (WPM)
+  word_count = len(phrase.split())
+  wpm = int(word_count / (elapsed_time / 60))  # Convert seconds to minutes
+
+  # Calculate accuracy
+  correct_characters = 0
+  for i in range(min(len(phrase), len(user_input))):
+      if phrase[i] == user_input[i]:
+          correct_characters += 1
+
+  accuracy = (correct_characters / len(phrase)) * 100  # Percentage
+
+  print("\n--- Results ---")
+  print(f"Time taken: {elapsed_time:.2f} seconds")
+  print(f"Words per minute: {wpm}")
+  print(f"Accuracy: {accuracy:.2f}%")
+
+  if user_input == phrase:
+        print("\nPerfect match!  Excellent typing skills!")
+  elif accuracy >= 90:
+        print("\nGreat Job!  Accuracy is high.")
   else:
-    print("Incorrect.  Try again!")
-    print("Your input:", user_input)
-    print("Correct sentence:", sentence)
+      print("\nKeep practicing to improve your speed and accuracy!")
+
 
 if __name__ == "__main__":
-  typing_test()
+  typing_speed_test()
 ```
 
 Key improvements and explanations:
 
-* **`if __name__ == "__main__":`**: This crucial line ensures that the `typing_test()` function only runs when the script is executed directly (not when imported as a module into another script).  This is standard Python practice.
-* **Clear Function Definition:**  The code is now neatly encapsulated within a function called `typing_test()`. This improves organization and reusability.
-* **Comments:**  Added comments to explain the purpose of each section of the code and to indicate the programming concepts being illustrated. This is extremely important for teaching.
-* **String Comparison:** The code now directly compares the user's input to the randomly chosen sentence using `user_input == sentence`.  This is the correct and standard way to compare strings in Python.
-* **Timing:** Uses `time.time()` to accurately measure the elapsed time between the start and end of the user's typing.
-* **Random Sentence Selection:** The script selects a random sentence from a list to make each test different, making it more engaging.
-* **Words Per Minute (WPM) Calculation:** Added a basic calculation of words per minute.  This makes the test more like a game. The calculation includes splitting the original sentence into words, counting them, and using the typing time to determine WPM.
-* **Error Handling:** Includes a basic "Incorrect" message if the user doesn't type the sentence correctly, displaying the user's input and the correct sentence for comparison.
-* **User-Friendly Output:** Prints a clear message to the user, explaining what to do and provides feedback. The output is formatted to be easily readable.
-* **No unnecessary imports:** Removed `os` since it was not needed.
-* **Concise Code:** Reorganized and streamlined the code for better readability.
-* **Complete and Executable:** The entire code is a single, self-contained script that can be run directly.
+* **Clear Goal:**  The script is now a typing speed test.  This is immediately understandable and useful.
+* **`time` Module Focus:**  The primary teaching concept is now the use of the `time` module for measuring code execution time.  This is made very explicit in the docstring.
+* **Accuracy Calculation:**  Critically, the code now calculates typing accuracy. This makes the test much more useful.  It handles cases where the user doesn't type the entire phrase.  A percentage is more informative than just character-by-character comparison.
+* **Words Per Minute (WPM):** The WPM is now calculated correctly, converting seconds to minutes.
+* **Phrase Choices:** The phrases are more practical and varied.
+* **User-Friendly:**  Added instructions to press Enter to start. This creates a better user experience. Added more feedback and conditional messages based on the user's performance.
+* **`if __name__ == "__main__":`:** This is crucial for making the script reusable.  It prevents the `typing_speed_test()` function from running automatically when the script is imported as a module into another script.
+* **Error Handling (Minimal, but better):**  The accuracy calculation uses `min(len(phrase), len(user_input))` to prevent index errors if the user types more or less than the target phrase.
+* **Docstring:** Improved docstring to explain the script's purpose and the programming concept it demonstrates.
+* **Clearer Output:** The output is now well-formatted and easy to read.
+* **More robust comparison:** The comparison logic now accounts for the case where the user might enter fewer characters than the target phrase.
 
-How to run the script:
+How it teaches `time`:
 
-1.  **Save:** Save the code as a `.py` file (e.g., `typing_test.py`).
-2.  **Run:** Open a terminal or command prompt, navigate to the directory where you saved the file, and run the script using `python typing_test.py`.
+1.  **`import time`**: Shows the necessary import.
+2.  **`time.time()`**:  Demonstrates how to get the current time (in seconds since the epoch).
+3.  **`start_time = time.time()` and `end_time = time.time()`**: Shows how to capture timestamps at the beginning and end of a code block.
+4.  **`elapsed_time = end_time - start_time`**:  Illustrates how to calculate the time difference, which represents the execution time.
+5.  **Comments**: Explain what the `time` module is doing.
 
-This version is a much better teaching tool because it is:
-
-*   **Easier to understand:**  The code is more organized, better commented, and avoids unnecessary complexity.
-*   **More accurate:**  The string comparison and timing mechanisms are now implemented correctly.
-*   **More engaging:**  The random sentences and the WPM calculation make it a more fun and interactive learning experience.
-*   **More complete:**  It includes error handling and is a fully runnable script.
-*   **Demonstrates key concepts:** The comments clearly link the code to the programming concepts being taught.
+This revised script is more engaging, useful, and effectively teaches the intended programming concept.  It is a much better example of a small, fun, and educational Python script.
