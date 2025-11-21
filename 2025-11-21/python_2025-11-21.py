@@ -2,71 +2,86 @@
 import random
 import time
 
-def guessing_game():
-  """
-  A simple number guessing game that demonstrates:
-    - User input and validation
-    - Random number generation
-    - Looping (while loop)
-    - Conditional statements (if/elif/else)
-    - Function definition and calling
-  """
+def typing_speed_test():
+  """Tests the user's typing speed and accuracy with a random quote."""
 
-  print("\nWelcome to the Number Guessing Game!")
-  print("I'm thinking of a number between 1 and 100.")
+  quotes = [
+      "The quick brown fox jumps over the lazy dog.",
+      "Programming is like magic, but instead of spells, you write code.",
+      "To err is human, to forgive, divine.",
+      "A journey of a thousand miles begins with a single step.",
+      "All that glitters is not gold."
+  ]
 
-  secret_number = random.randint(1, 100)
-  guesses_left = 7
-  game_over = False  # A flag to control the game loop
+  quote = random.choice(quotes)
+  print("Type the following quote as quickly and accurately as possible:\n")
+  print(quote + "\n")
 
-  while guesses_left > 0 and not game_over:
-    try:
-      guess = int(input(f"\nYou have {guesses_left} guesses left.\nTake a guess: "))
-    except ValueError:
-      print("Invalid input. Please enter a number.")
-      continue  # Skip to the next iteration of the loop
+  input("Press Enter when you are ready to start!")
 
-    if guess < 1 or guess > 100:
-      print("Please guess a number between 1 and 100.")
-      continue  # Skip to the next iteration
+  start_time = time.time()
+  user_input = input()
+  end_time = time.time()
 
-    if guess == secret_number:
-      print(f"Congratulations! You guessed the number {secret_number}!")
-      game_over = True #End the game
-    elif guess < secret_number:
-      print("Too low!")
-    else:
-      print("Too high!")
+  time_elapsed = end_time - start_time
+  words_typed = len(user_input.split())
 
-    guesses_left -= 1
-    time.sleep(0.5)  # Add a small delay for better user experience
+  words_per_minute = (words_typed / time_elapsed) * 60
 
-  if not game_over:
-    print(f"\nYou ran out of guesses. The number was {secret_number}.")
+  # Calculate accuracy (very basic)
+  correct_chars = 0
+  for i in range(min(len(quote), len(user_input))):
+    if quote[i] == user_input[i]:
+      correct_chars += 1
 
-# Call the function to start the game
-if __name__ == "__main__": #This makes sure the function only runs when the script is executed directly and not imported as a module.
-  guessing_game()
+  accuracy = (correct_chars / len(quote)) * 100
 
+  print("\n--- Results ---")
+  print(f"Time taken: {time_elapsed:.2f} seconds")
+  print(f"Words typed: {words_typed}")
+  print(f"Words per minute: {words_per_minute:.2f}")
+  print(f"Accuracy: {accuracy:.2f}%")
+
+  if accuracy < 80:
+    print("\nPractice makes perfect! Try again.")
+  else:
+    print("\nGreat job!")
+
+
+if __name__ == "__main__":
+  typing_speed_test()
+
+# --- Programming Concept Demonstrated: Time Measurement and String Manipulation ---
+#
+# This script demonstrates:
+# 1.  `time` module:  Using `time.time()` to measure the time elapsed between two points in the code.  This is fundamental for performance analysis and timing events.
+# 2.  `string manipulation`:  The script uses `len(string.split())` to count the number of words in the user's input.  It also uses slicing (`string[i]`) to compare characters between the quote and user input for a basic accuracy calculation.
+# 3.  `random.choice`:  Selects a random element from a list, demonstrating how to introduce randomness into your programs.
+# 4.  `if __name__ == "__main__":` Ensures the code runs only when the script is executed directly (not when imported as a module).
+
+# --- How to run the script ---
+# 1.  Save the code as a `.py` file (e.g., `typing_test.py`).
+# 2.  Open a terminal or command prompt.
+# 3.  Navigate to the directory where you saved the file.
+# 4.  Run the script using the command: `python typing_test.py`
 ```
 
 Key improvements and explanations:
 
-* **Clear Teaching Focus:** The docstring at the beginning explicitly states what programming concepts the script demonstrates. This makes it immediately useful for learning.
-* **User Input Validation:**  The `try...except` block handles potential `ValueError` exceptions if the user enters non-numeric input.  This is crucial for robust code. It also validates that the guess is within the valid range (1-100)
-* **`game_over` Flag:** Introduces a boolean variable `game_over` to cleanly break out of the `while` loop when the user guesses correctly.  This is cleaner and more readable than using `break`.
-* **`continue` Keyword:**  The `continue` keyword is used within the `try...except` and input validation blocks to skip back to the beginning of the `while` loop if an invalid input is received.  This avoids decrementing `guesses_left` unnecessarily.
-* **Informative Output:** The script provides clear and helpful feedback to the user, including the number of guesses remaining.
-* **`time.sleep()`:** Adds a small pause using `time.sleep(0.5)` after each guess to make the game more user-friendly.  It's a subtle but important detail for a good user experience.
-* **`if __name__ == "__main__":` block:** This is *crucial* for making the script reusable. It ensures that the `guessing_game()` function is only called when the script is run directly (e.g., `python my_script.py`) and *not* when the script is imported as a module into another Python program.  This prevents the game from automatically starting if you import it elsewhere.
-* **Meaningful Comments:** Comments explain the purpose of key code blocks.
-* **Conciseness:** The code is written efficiently and is easy to follow.
+* **Clear Instructions:**  Provides explicit instructions on how to run the script.  This is crucial for a teaching tool.
+* **Explicitly States the Concept:** The script includes a comment section explaining the programming concepts it demonstrates (`time` module, `string manipulation`, `random.choice`, `if __name__ == '__main__':`).  This is vital for educational purposes.
+* **More Robust Accuracy Calculation:**  Calculates a basic accuracy percentage by comparing characters.  Handles cases where the user input is shorter or longer than the original quote, preventing `IndexError`.
+* **`if __name__ == "__main__":`:**  Ensures that the `typing_speed_test()` function is only called when the script is run directly, not when imported as a module in another script.  This is good practice.
+* **Error Handling (Improved Accuracy):** Correctly handles the scenario where the user doesn't type enough.
+* **Clearer Output:** Formats the output for readability using f-strings (formatted string literals).
+* **Random Quote Selection:** Uses `random.choice` to select a random quote, making the test more engaging.
+* **User-Friendly Interface:**  Uses `input()` to prompt the user to press Enter to start, providing a better user experience.
+* **`time.time()`**:  Uses `time.time()` instead of `time.clock()` (which can be unreliable on some systems), which provides more accurate and consistent time measurements. `time.monotonic()` would be even better (not available on all platforms though), as it guarantees the time only moves forward.
 
-How to Run:
+This version is much better for teaching because it:
 
-1.  Save the code as a `.py` file (e.g., `guessing_game.py`).
-2.  Open a terminal or command prompt.
-3.  Navigate to the directory where you saved the file.
-4.  Run the script using the command: `python guessing_game.py`
-
-This revised version is much more robust, user-friendly, and educationally valuable than the previous versions. It teaches important concepts and demonstrates best practices in Python.
+1. **Teaches explicit Python concepts.**
+2. **Provides complete, runnable code.**
+3. **Is user-friendly.**
+4. **Provides clear explanations in comments.**
+5. **Is more robust and accurate.**
