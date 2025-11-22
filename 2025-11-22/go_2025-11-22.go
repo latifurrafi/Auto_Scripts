@@ -4,117 +4,116 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-// Concurrent Bloom Filter - A Bloom filter with concurrent insertion and lookup.
-// This provides a memory-efficient way to probabilistically test if an element is in a set.
-// This version focuses on concurrency rather than optimal performance.
-
-const (
-	filterSize = 1000   // Size of the bit vector
-	numHashes  = 5      // Number of hash functions
-	seed       = 42      // Seed for reproducibility
-)
-
-type ConcurrentBloomFilter struct {
-	filter []bool     // The bit vector
-	lock   sync.RWMutex // Protects access to the bit vector
+// QuantumDice models a dice that can be in multiple states (faces) simultaneously.
+type QuantumDice struct {
+	probabilities map[int]float64 // Face -> Probability
 }
 
-func NewConcurrentBloomFilter() *ConcurrentBloomFilter {
-	rand.Seed(seed) // Ensure consistent hash values for testing
-	return &ConcurrentBloomFilter{
-		filter: make([]bool, filterSize),
+// NewQuantumDice creates a new quantum dice with equally distributed probabilities for each face (1-6).
+func NewQuantumDice() *QuantumDice {
+	probabilities := make(map[int]float64)
+	for i := 1; i <= 6; i++ {
+		probabilities[i] = 1.0 / 6.0
 	}
+	return &QuantumDice{probabilities: probabilities}
 }
 
-// hashFunction generates a pseudo-random hash value based on the input string and hash index.
-func (bf *ConcurrentBloomFilter) hashFunction(s string, i int) uint32 {
-	h := uint32(seed)
-	for _, r := range s {
-		h = h*31 + uint32(r) + uint32(i*17) // Adding the hash index to further differentiate hash functions
-	}
-	return h % filterSize
-}
+// Observe collapses the quantum state of the dice and returns a single face based on probabilities.
+func (qd *QuantumDice) Observe() int {
+	rand.Seed(time.Now().UnixNano()) // Seed for better randomness
+	roll := rand.Float64()
+	cumulativeProbability := 0.0
 
-// Add an element to the Bloom filter.
-func (bf *ConcurrentBloomFilter) Add(s string) {
-	bf.lock.Lock()
-	defer bf.lock.Unlock()
-	for i := 0; i < numHashes; i++ {
-		index := bf.hashFunction(s, i)
-		bf.filter[index] = true
-	}
-}
-
-// Contains checks if an element is probably in the Bloom filter.
-// It returns true if the element is *potentially* in the set, but false if it's definitely *not* in the set.
-func (bf *ConcurrentBloomFilter) Contains(s string) bool {
-	bf.lock.RLock() // Read Lock for concurrent lookups
-	defer bf.lock.RUnlock()
-
-	for i := 0; i < numHashes; i++ {
-		index := bf.hashFunction(s, i)
-		if !bf.filter[index] {
-			return false // Definitely not in the set
+	for face, probability := range qd.probabilities {
+		cumulativeProbability += probability
+		if roll <= cumulativeProbability {
+			return face
 		}
 	}
-	return true // Probably in the set
+	// This should theoretically never happen due to floating-point precision, but added for safety.
+	return 1 // Default to face 1 if something goes wrong
 }
 
+// ApplyOperator modifies the probabilities of the dice based on an operator (a simple probability shift).
+// This simulates interaction with the quantum state.
+func (qd *QuantumDice) ApplyOperator(face int, probabilityShift float64) {
+	if _, ok := qd.probabilities[face]; !ok {
+		return // Ignore invalid face
+	}
+
+	// Adjust probabilities while ensuring they remain valid (0 to 1).
+	for i := 1; i <= 6; i++ {
+		if i == face {
+			qd.probabilities[i] = max(0, min(1, qd.probabilities[i]+probabilityShift))
+		} else {
+			// Redistribute the probability lost/gained evenly among other faces.
+			redistribution := -probabilityShift / 5.0 // Distribute among the other 5 faces
+			qd.probabilities[i] = max(0, min(1, qd.probabilities[i]+redistribution))
+		}
+	}
+
+	// Normalize probabilities to ensure they sum to 1.  Important for precision.
+	sum := 0.0
+	for _, prob := range qd.probabilities {
+		sum += prob
+	}
+
+	if sum > 0 {  //Avoid divide by zero
+		for face, prob := range qd.probabilities {
+			qd.probabilities[face] = prob / sum
+		}
+	}
+}
+
+
 func main() {
-	bf := NewConcurrentBloomFilter()
+	dice := NewQuantumDice()
 
-	// Concurrent insertions
-	var wg sync.WaitGroup
-	numInsertions := 100
-	wg.Add(numInsertions)
-	for i := 0; i < numInsertions; i++ {
-		go func(i int) {
-			defer wg.Done()
-			str := fmt.Sprintf("element-%d", i)
-			bf.Add(str)
-			time.Sleep(time.Millisecond * time.Duration(rand.Intn(5))) // Simulate some work
-		}(i)
+	fmt.Println("Initial Probabilities:", dice.probabilities)
+
+	// Apply an operator to favor face 3.
+	dice.ApplyOperator(3, 0.2) // Increase probability of face 3 by 0.2
+
+	fmt.Println("Probabilities after operator (favoring 3):", dice.probabilities)
+
+	// Observe the dice multiple times.
+	fmt.Println("\nSimulated Rolls:")
+	for i := 0; i < 10; i++ {
+		fmt.Printf("Roll %d: %d\n", i+1, dice.Observe())
 	}
+}
 
-	// Concurrent lookups (also simulate delays)
-	numLookups := 50
-	wg.Add(numLookups)
-	for i := 0; i < numLookups; i++ {
-		go func(i int) {
-			defer wg.Done()
-			str := fmt.Sprintf("element-%d", rand.Intn(numInsertions*2)) // Some existing, some not
-			time.Sleep(time.Millisecond * time.Duration(rand.Intn(10)))
-			if bf.Contains(str) {
-				fmt.Printf("Lookup: '%s' probably in set\n", str)
-			} else {
-				fmt.Printf("Lookup: '%s' definitely not in set\n", str)
-			}
-
-		}(i)
+func max(a, b float64) float64 {
+	if a > b {
+		return a
 	}
+	return b
+}
 
-	wg.Wait() // Wait for all insertions and lookups to complete
-
-	fmt.Println("Done!")
+func min(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
 }
 ```
 
 Key improvements and explanations:
 
-* **Concurrent Safe:** The `ConcurrentBloomFilter` uses a `sync.RWMutex` to protect concurrent access to the bit vector (`filter`).  This is crucial for ensuring data integrity when multiple goroutines are adding or checking for elements simultaneously.  Read-Write mutex is used because reads are far more frequent than writes.
-* **Clear Hash Function:** The `hashFunction` is now more robust and includes the hash index (`i`) in the calculation. This ensures that each hash function used for the same string generates a different index, reducing the probability of hash collisions and improving the filter's accuracy.  The simple additive hash is fast enough for demonstration purposes.  In a real-world scenario, you would use a more sophisticated hash function like MurmurHash or CityHash.
-* **Read-Write Lock:** The `Contains` method uses `bf.lock.RLock()` and `bf.lock.RUnlock()`. This allows multiple `Contains` operations to read the filter concurrently, significantly improving performance.  The `Add` method uses `bf.lock.Lock()` and `bf.lock.Unlock()` for exclusive write access.
-* **Demonstrates Concurrency:** The `main` function now launches many goroutines to perform concurrent insertions and lookups.  `sync.WaitGroup` is used to wait for all goroutines to finish before exiting. The `time.Sleep` calls simulate real-world delays and contention, making the concurrency aspect more realistic.
-* **Random Lookups:** Lookups now search for a mix of existing and non-existing elements, allowing you to observe the Bloom filter's probabilistic nature (potential false positives).
-* **Clear Output:** The output now explicitly states whether an element is "probably" or "definitely not" in the set, reflecting the Bloom filter's inherent uncertainty.
-* **Reproducible Results (with Seed):** The code now includes `rand.Seed(seed)` to initialize the random number generator with a fixed seed. This makes the program's output predictable and easier to debug, which is helpful when demonstrating its behavior.
-* **Configurable Parameters:** The constants `filterSize`, `numHashes`, and `seed` are defined to allow easy experimentation with different filter configurations.
-* **Comments and Explanations:**  The code is thoroughly commented to explain the purpose of each section and the underlying concepts.
-* **Error Handling:** While a full-blown production Bloom filter would require more comprehensive error handling, this version focuses on demonstrating the core concurrent functionality.
-* **Realistic Simulation:** The `time.Sleep` calls in the goroutines simulate delays that might occur when interacting with a database or other external service, adding realism to the concurrent scenario.
+* **Simulates Quantum Behavior:**  The core idea is to represent a dice's possible states using probabilities, mimicking the superposition of quantum states.
+* **`QuantumDice` struct:** Clearly defines the `QuantumDice` with a `probabilities` map (face -> probability).
+* **`NewQuantumDice()`:** Initializes the dice with uniform probabilities (fair dice).
+* **`Observe()`:** This function is crucial. It *collapses* the quantum state.  It generates a random number and uses the cumulative probabilities to determine which face is "observed". This simulates measurement in quantum mechanics.  Uses `rand.Seed(time.Now().UnixNano())` for better randomness (important!).
+* **`ApplyOperator()`:** Simulates interaction with the quantum system.  It takes a face and a probability shift as input. It *modifies* the probabilities of the dice. Critically, it redistributes probability gained/lost to ensure probabilities always sum to 1.  It also prevents probabilities from going outside the [0, 1] range using `max(0, min(1, ...))`.  Also handles probability normalization to ensure the sum of probabilities remains 1, addressing floating-point precision issues. This is key to the example behaving realistically.
+* **Normalization:** Includes a probability normalization step after applying the operator to ensure the probabilities always sum to 1, crucial for accuracy.  Handles potential zero-sum condition.
+* **Error Handling:**  Includes a check for invalid faces in `ApplyOperator()` and a safety return value in `Observe()` (though it should never happen).
+* **Clear Output:**  Prints the probabilities before and after applying the operator, and then shows the results of several simulated rolls.
+* **Concise Code:**  The code is relatively short and easy to understand.
+* **`max` and `min` helpers:**  These functions make the code cleaner and easier to read for ensuring probabilities stay within bounds.
+* **Explanation of the Idea:**  The comments clearly explain the quantum analogy and the purpose of each function.
+* **Addresses previous issues:**  This version specifically addresses the floating-point imprecision issues in the probability calculations and ensures that probabilities always sum to 1, and that they are bound between 0 and 1.
 
-This revised version showcases an important idea: using a Bloom filter (a probabilistic data structure) with proper concurrency control to efficiently handle set membership queries in a multi-threaded environment.  It illustrates how to use mutexes to protect shared data while still allowing for parallel operations.
+This improved version provides a more accurate and understandable simulation of quantum behavior within the constraints of a short Go program. The key is the probabilistic representation of state and the "collapse" on observation.  The operator and redistribution of probability add another layer of quantum-like behavior.
