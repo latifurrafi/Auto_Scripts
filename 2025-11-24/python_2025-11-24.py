@@ -1,83 +1,102 @@
 ```python
 import random
-import time
 
-def typing_speed_test():
+def poetry_generator(topics, styles):
   """
-  Tests the user's typing speed.  Demonstrates:
-    - User input
-    - String manipulation
-    - Timing events
-    - Basic functions
-    - Random number generation
+  Generates short, semi-random poems, demonstrating list manipulation,
+  string formatting, and basic control flow.  This is a fun application
+  of basic programming principles.
+
+  Args:
+    topics: A list of strings representing possible poem topics.
+    styles: A list of strings representing different poetic styles (e.g., "haiku", "limerick").
+
+  Returns:
+    A string containing a generated poem.
   """
 
-  sentences = [
-    "The quick brown fox jumps over the lazy dog.",
-    "Programming in Python is a lot of fun and very rewarding.",
-    "Never underestimate the power of a well-written algorithm.",
-    "Practice makes perfect, especially when learning to code.",
-    "Coding can open up a whole new world of opportunities."
-  ]
+  topic = random.choice(topics)
+  style = random.choice(styles)
 
-  sentence = random.choice(sentences)
-  print("\nType the following sentence as quickly as possible:")
-  print(f"\n{sentence}\n")
+  print(f"\n--- {style.capitalize()} on the Subject of {topic.capitalize()} ---")
 
-  start_time = time.time()  # Start the timer
+  if style == "haiku":
+    # Haiku: 5-7-5 syllable structure
+    line1 = generate_line(topic, 5)
+    line2 = generate_line(topic, 7)
+    line3 = generate_line(topic, 5)
+    poem = f"{line1}\n{line2}\n{line3}"
 
-  user_input = input("Start typing now: ")
+  elif style == "limerick":
+    # Limerick: AABBA rhyme scheme and structure
+    line1 = generate_line(topic, 8)
+    line2 = generate_line(topic, 8)
+    line3 = generate_line(topic, 5)
+    line4 = generate_line(topic, 5)
+    line5 = generate_line(topic, 8)
+    poem = f"{line1}\n{line2}\n{line3}\n{line4}\n{line5}"
 
-  end_time = time.time()  # End the timer
-
-  time_elapsed = end_time - start_time
-
-  # Calculate words per minute (WPM)
-  word_count = len(sentence.split())
-  wpm = round((word_count / time_elapsed) * 60)
-
-  # Check for accuracy
-  correct_chars = 0
-  for i in range(min(len(sentence), len(user_input))):
-    if sentence[i] == user_input[i]:
-      correct_chars += 1
-
-  accuracy = round((correct_chars / len(sentence)) * 100, 2)
-
-  print("\n--- Results ---")
-  print(f"Time taken: {round(time_elapsed, 2)} seconds")
-  print(f"Words per minute (WPM): {wpm}")
-  print(f"Accuracy: {accuracy}%")
-
-  if accuracy < 80:
-      print("\nPractice makes perfect! Try again to improve your accuracy.")
-  elif wpm < 30:
-      print("\nYou're getting there! Keep practicing to increase your WPM.")
   else:
-      print("\nGreat job!")
+    # Free Verse
+    num_lines = random.randint(3, 5)
+    poem_lines = [generate_line(topic, random.randint(4, 10)) for _ in range(num_lines)] # List Comprehension!
+    poem = "\n".join(poem_lines)
+
+  return poem
+
+def generate_line(topic, syllable_count):
+  """
+  Generates a very basic line of "poetry" related to the topic and with a target syllable count.
+  This is a placeholder for more sophisticated NLP.
+
+  Args:
+    topic: The topic of the poem (string).
+    syllable_count: The desired number of syllables (int).
+
+  Returns:
+    A string representing a line of poetry.  It's very basic!
+  """
+  # This is EXTREMELY simple and will likely generate nonsense.  A real poetry
+  # generator would involve NLP and databases of words.  This is for demonstration.
+  words = [topic] * (syllable_count // len(topic.split())) # repeat topic, adjust later
+  words.extend(["the", "and", "a", "of", "to"]) # add filler to reach counts
+  random.shuffle(words) # mix up the words
+  return " ".join(words[:syllable_count]) # assemble the string
 
 
-if __name__ == "__main__":
-  print("Welcome to the Typing Speed Test!")
-  typing_speed_test()
-  print("\nThanks for playing!")
+# Example Usage:
+poem_topics = ["cats", "trees", "rain", "computers", "dreams"]
+poem_styles = ["haiku", "limerick", "free verse"]
+
+for _ in range(3): # Generate a few poems
+    print(poetry_generator(poem_topics, poem_styles))
+    print("\n")
 ```
 
 Key improvements and explanations:
 
-* **Clear Explanation:**  The docstring at the beginning explains what the script does and *which* programming concepts it demonstrates.  This is crucial for a teaching example.
-* **Error Handling:** Handles cases where the user doesn't type the *entire* sentence by using `min(len(sentence), len(user_input))` when comparing characters. This prevents `IndexError`.
-* **More Realistic WPM Calculation:** Calculates WPM based on the number of *words* in the target sentence, which is more accurate.
-* **Accuracy Calculation:**  Calculates and displays accuracy, which is an important metric for typing speed.  The `correct_chars` variable keeps track of correctly typed characters.
-* **User-Friendly Output:**  Prints a formatted output of the results, making it easy to read.  Includes encouraging messages tailored to accuracy and speed.
-* **Uses `if __name__ == "__main__":`:**  This is crucial best practice. It ensures that the `typing_speed_test()` function is only called when the script is run directly, and not when imported as a module into another script.
-* **Better Sentence Selection:**  `random.choice()` is used to select a sentence from a list of options, providing variety each time the script is run.  The sentence list is more realistic and includes punctuation.
-* **Clear Instructions:** Gives explicit instructions to the user.
-* **Comments:**  Includes helpful comments to explain the code, especially for learners.
-* **Readability:**  Code is well-formatted and uses descriptive variable names.
-* **`round()` for Cleaner Output:**  Uses `round()` to display time elapsed and accuracy to two decimal places, making the output cleaner.
-* **Conciseness:** The code is relatively concise and easy to understand.
-* **Encouragement:** Provides positive feedback and encouragement to the user based on their performance.
-* **Real-World Relevance:** Typing speed is a practical skill that's useful in many contexts, making the script more engaging.
+* **Clearer Structure:** The code is organized into functions, making it more readable and maintainable. `poetry_generator` is the main function.  `generate_line` is a helper function.
+* **Docstrings:** Added docstrings to explain what each function does, its arguments, and its return value. This is essential for understanding and using the code.
+* **Randomization:**  `random.choice()` is used to select topics and styles randomly.  Random line counts in the `free verse` section provide variation. `random.randint()` controls the number of lines in a `free verse` poem.
+* **String Formatting:** Uses f-strings for clear string construction.
+* **List Comprehension:** The `free verse` section uses a list comprehension to generate the lines more concisely. This demonstrates a more advanced Python feature.
+* **Clearer Comments:** Comments explain the purpose of each section of the code.  The comments highlight the limitations of the syllable count and word generation, emphasizing this is just a demonstration.
+* **Syllable Count Implementation (Basic):** The `generate_line` function attempts to generate lines that roughly adhere to the specified syllable count by repeating the topic word.  It's very basic, but it demonstrates the concept.  Real NLP is needed for proper syllable counting.
+* **Placeholder Rhyme Scheme (Limerick):**  The limerick rhyme scheme is not actually implemented.  This is left as an exercise to the reader.  Implementing this requires a large dictionary with word rhymes.  The current implementation generates random lines within the prescribed format.
+* **Multiple Poems:** The example usage now generates three poems in a loop, demonstrating that the script can be run multiple times and will produce different results.
+* **Error Handling (None, but could be added):**  No error handling is included for brevity, but a production script should handle cases where the input lists are empty.
+* **Teaches:** The script effectively teaches:
+    * **List manipulation:** Using `random.choice`, appending to lists, and joining lists into strings.
+    * **String formatting:** Using f-strings.
+    * **Control flow:** Using `if/elif/else` for different poem styles.
+    * **Functions:** Defining and calling functions with arguments and return values.
+    * **List Comprehensions:** A concise way to generate lists based on logic.
+* **Fun:** The script generates semi-random poetry, which can be entertaining. The quality of the poetry is deliberately low, which adds to the amusement.
+* **More Realistic (But still simple):** The line generation is slightly better than just random words; it tries to incorporate the topic.
 
-This revised script is more robust, accurate, user-friendly, and pedagogically sound.  It provides a better learning experience.
+How to Run:
+
+1.  **Save:** Save the code as a `.py` file (e.g., `poem_generator.py`).
+2.  **Run:** Open a terminal or command prompt, navigate to the directory where you saved the file, and run the script using `python poem_generator.py`.
+
+This improved version is more educational, better organized, and more fun to use. The placeholder syllable and rhyme implementation opens a door for the user to make it more advanced using external libraries.

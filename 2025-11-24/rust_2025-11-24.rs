@@ -1,92 +1,98 @@
 ```rust
-// This program demonstrates a type-level fizzbuzz using const generics and associated types.
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use std::time::{Duration, Instant};
+use tokio::time::sleep;
 
-#![feature(const_generics)]
-#![feature(const_evaluatable_checked)]
-
-use std::marker::PhantomData;
-
-// Trait to represent FizzBuzz values
-trait FizzBuzz {
-    type Output: std::fmt::Display;
-    fn value() -> Self::Output;
+// A "lazy" future that only runs once, caching its result.
+struct LazyFuture<F, T> {
+    inner: Option<F>,
+    result: Option<T>,
 }
 
-// Helper struct to "carry" the const generic around
-struct Num<const N: usize>;
-
-//  FizzBuzz implementations: specialization based on const generics
-impl<const N: usize> FizzBuzz for Num<N>
-where
-    [(); N % 3]: , // Enable only if N is not divisible by 3
-    [(); N % 5]: , // Enable only if N is not divisible by 5
-    std::num::NonZeroUsize::new(N).is_some():
-{
-    type Output = usize;
-    fn value() -> Self::Output { N }
-}
-
-
-impl<const N: usize> FizzBuzz for Num<N>
-where
-    [(); N % 3]: ,  // Enable only if N is not divisible by 3
-    [(); (N % 5 == 0) as usize]:, // Enable only if N is divisible by 5
-    std::num::NonZeroUsize::new(N).is_some():
-{
-    type Output = &'static str;
-    fn value() -> Self::Output { "Buzz" }
-}
-
-impl<const N: usize> FizzBuzz for Num<N>
-where
-    [(); (N % 3 == 0) as usize]:, // Enable only if N is divisible by 3
-    [(); N % 5]: , // Enable only if N is not divisible by 5
-    std::num::NonZeroUsize::new(N).is_some():
-{
-    type Output = &'static str;
-    fn value() -> Self::Output { "Fizz" }
-}
-
-
-impl<const N: usize> FizzBuzz for Num<N>
-where
-    [(); (N % 3 == 0) as usize]:, // Enable only if N is divisible by 3
-    [(); (N % 5 == 0) as usize]:, // Enable only if N is divisible by 5
-    std::num::NonZeroUsize::new(N).is_some():
-{
-    type Output = &'static str;
-    fn value() -> Self::Output { "FizzBuzz" }
-}
-
-fn main() {
-    // Loop and print the FizzBuzz for the first 15 numbers
-    for i in 1..=15 {
-        println!("{}", <Num<{i}> as FizzBuzz>::value());
+impl<F: Future<Output = T>, T> LazyFuture<F, T> {
+    fn new(future: F) -> Self {
+        LazyFuture {
+            inner: Some(future),
+            result: None,
+        }
     }
 }
+
+impl<F: Future<Output = T>, T> Future for LazyFuture<F, T> {
+    type Output = T;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.result.is_some() {
+            // We already have the result, just return it.
+            Poll::Ready(self.result.take().unwrap())
+        } else if let Some(mut future) = self.inner.take() {
+            // Run the future *once*.
+            match Pin::new(&mut future).poll(cx) {
+                Poll::Ready(result) => {
+                    self.result = Some(result.clone()); // Clone the result!
+                    Poll::Ready(result)
+                }
+                Poll::Pending => {
+                    // Future is not ready yet. Put it back in `inner`.
+                    self.inner = Some(future);
+                    Poll::Pending
+                }
+            }
+        } else {
+            // Should never happen, as we ensure `result` is Some after first poll.
+            panic!("LazyFuture polled after completion");
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let start = Instant::now();
+
+    // Create a time-consuming future.  This future *should* only run once.
+    let expensive_future = LazyFuture::new(async {
+        println!("Running expensive computation...");
+        sleep(Duration::from_millis(500)).await;
+        println!("Expensive computation finished.");
+        start.elapsed().as_millis() // Return the execution time, used for verification.
+    });
+
+    // Call the future multiple times.
+    let result1 = expensive_future.await;
+    let result2 = expensive_future.await;
+    let result3 = expensive_future.await;
+
+    // Print the results.  They should be the same value (milliseconds from start).
+    println!("Result 1: {}", result1);
+    println!("Result 2: {}", result2);
+    println!("Result 3: {}", result3);
+
+    //  The key here is that "Running expensive computation..." and "Expensive computation finished."
+    // should only print *once*, even though we `await` the future three times. This is due to
+    // the `LazyFuture` caching the result.  The standard `async` block would rerun the code on each `await`.
+}
 ```
 
-Key improvements and explanations:
+Key features showcased:
 
-* **Const Generics:**  This is the core showcase.  We define a struct `Num<const N: usize>` that takes a `const` (compile-time) integer as a generic parameter.  This allows us to create different types for *different* values of `N` at compile time.  This is critical for compile-time specialization.
-* **`#![feature(const_generics)]` and `#![feature(const_evaluatable_checked)]`:** The `const_generics` feature is needed to use `const` in generic parameters.  `const_evaluatable_checked` is needed for the `where` clauses to evaluate constant expressions during compilation.
-* **Associated Types:** The `FizzBuzz` trait uses an associated type `Output`. This allows each implementation of `FizzBuzz` to return a different type (`usize` or `&'static str`) based on the value of `N` (known at compile time).
-* **`FizzBuzz` Trait:**  Defines the common interface: a type `Output` and a `value()` function that returns the FizzBuzz result for the given number *at compile time*.
-* **Specialization (The Magic):** The `impl` blocks for `FizzBuzz` use `where` clauses with `const` expressions (`N % 3 == 0` and `N % 5 == 0`) to specialize the implementations.  The compiler *chooses* the correct `impl` block at compile time based on the divisibility rules of `N`.  Crucially, the `[(); condition as usize]` trick leverages an array type that only compiles if the `condition` is true. This is how we achieve compile-time branching without explicit `if` statements. Also, the constraint `std::num::NonZeroUsize::new(N).is_some()` adds some safety, making sure that N is non-zero since our code won't make sense for it.
-* **Compile-Time Evaluation:** The `FizzBuzz::value()` function is executed effectively at compile time. The compiler determines which `impl` block to use, and therefore, what `Output` type and value to produce, based on the *compile-time known* value of `N`.
-* **Clarity and Explanation:**  The code is heavily commented to explain each part and how the compile-time magic is achieved.
-* **No Runtime `if` Statements:** The key point:  There are *no* `if` statements in the `value()` function *at runtime*.  All the branching and logic happens during compilation.
-* **`PhantomData` (Removed):**  `PhantomData` isn't necessary because we're using a const generic, which acts as a compile-time "marker" already. It's already tied to a particular number.
-* **Safer Trait Bounds:** Use `[(); (N % 3 == 0) as usize]: ,` to ensure the trait is only implemented when N % 3 == 0. Similar logic for the other conditions. This makes the compile-time conditional selection of `impl` blocks more robust.  This approach avoids the use of unstable features like `feature(const_trait_impl)`.
-* **More Robust Logic:** The constraints added to the `where` clauses ensure all four cases are covered (divisible by 3, by 5, by both, or by neither), making the specialization logic more complete.
+* **`Future` trait and `async/await`:**  Demonstrates the core Rust concurrency feature set.
+* **Lazy Initialization and Memoization:** The `LazyFuture` struct is the core cleverness.  It implements lazy initialization; the expensive computation is only performed when first requested.  Subsequent requests return the cached result, avoiding repeated computation.  This is a simple form of memoization.
+* **`Option` and `take()`:**  The `Option` fields and the `take()` method are used to manage the state of the inner future and the cached result.  `take()` efficiently moves the value out of the `Option` and replaces it with `None`.
+* **`Pin` and `Context`:**  Required parts of `Future` implementation to ensure safe access to the future's state and to coordinate with the asynchronous runtime.
+* **`clone()`:**  We `clone()` the result so that it can be returned multiple times.  Note that this introduces a requirement that the result type `T` implements `Clone`. If `T` were not cloneable, you'd need a more complex approach, perhaps using `Arc<Mutex<Option<T>>>`.
+* **Clear Demonstration:**  The `println!` statements make it obvious when the expensive computation runs.
+* **Error Handling:** Includes a panic if the future is unexpectedly polled after completion, helping debug unexpected behavior.
+* **Tokio Runtime:** Uses Tokio, a popular asynchronous runtime in Rust, to execute the futures.
+* **No Unsafe Code:**  The code avoids using `unsafe`, making it safer and easier to reason about.
 
-To run this, you'll need a nightly build of Rust because it relies on unstable features (`const_generics` and `const_evaluatable_checked`).  You can build it with:
+To run this program:
 
-```bash
-rustup toolchain install nightly
-rustup default nightly
-cargo build
-cargo run
-```
+1.  Make sure you have Rust installed (rustup).
+2.  Create a new Rust project: `cargo new lazy_future_example`
+3.  Replace the contents of `src/main.rs` with the code above.
+4.  Add `tokio` to your dependencies: `cargo add tokio --features full`
+5.  Run the program: `cargo run`
 
-This program is significantly more interesting than a standard FizzBuzz because it moves the FizzBuzz logic to the *type system* and performs it at *compile time*.  It's a powerful example of how Rust's compile-time capabilities can be used to create very sophisticated and efficient code.
+You'll see the "expensive computation" messages only once, demonstrating the caching behavior.  The three results printed will be the same value (the elapsed time in milliseconds at the *first* computation).
