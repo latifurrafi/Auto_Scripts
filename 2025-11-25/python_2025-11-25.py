@@ -2,77 +2,78 @@
 import random
 import time
 
-def typing_speed_test():
-    """Tests the user's typing speed and provides feedback.
-    Demonstrates string manipulation, timing, and basic user input.
-    """
+def typeracer():
+  """
+  A simple type racer game that demonstrates string manipulation,
+  random number generation, and time tracking in Python.
+  """
 
-    sentences = [
-        "The quick brown fox jumps over the lazy dog.",
-        "Programming is fun and challenging.",
-        "Practice makes perfect, so keep coding!",
-        "Never give up on your dreams."
-    ]
+  phrases = [
+      "The quick brown fox jumps over the lazy fox.",
+      "Programming is fun, especially with Python!",
+      "Never give up, never surrender!",
+      "All that glitters is not gold."
+  ]
 
-    sentence = random.choice(sentences)
-    print("Type the following sentence as quickly and accurately as possible:\n")
-    print(sentence + "\n")
+  # Choose a random phrase
+  phrase = random.choice(phrases)
 
-    input("Press Enter when you are ready to start...")
-    start_time = time.time()
+  print("Ready?  Set!  Go!")
+  time.sleep(1)  # A slight pause to simulate the starting gun
 
-    user_input = input("Start Typing: ")
+  start_time = time.time()
+  print(f"\nType this: \n{phrase}\n")
 
-    end_time = time.time()
-    time_taken = end_time - start_time
+  user_input = input("Your input: ")
+  end_time = time.time()
 
-    correct_characters = 0
-    for i in range(min(len(sentence), len(user_input))):
-        if sentence[i] == user_input[i]:
-            correct_characters += 1
+  elapsed_time = end_time - start_time
 
-    accuracy = (correct_characters / len(sentence)) * 100
-    words_typed = len(user_input.split())
-    words_per_minute = (words_typed / time_taken) * 60
+  # Check for accuracy
+  if user_input == phrase:
+    print("\nPerfect!")
+    words = len(phrase.split())  # Count words
+    wpm = round((words / elapsed_time) * 60)  # Words per minute
+    print(f"Your time: {elapsed_time:.2f} seconds.")
+    print(f"Your WPM: {wpm}")
+  else:
+    print("\nIncorrect. Try again!")
+    # Print a more specific error message (optional):
+    # diff = [i for i, (c1, c2) in enumerate(zip(phrase, user_input)) if c1 != c2]
+    # if diff:
+    #   print(f"Error detected around character position {diff[0]}")
 
-    print("\n--- Results ---")
-    print(f"Time taken: {time_taken:.2f} seconds")
-    print(f"Accuracy: {accuracy:.2f}%")
-    print(f"Words per minute: {words_per_minute:.2f} WPM")
-
-    if accuracy < 80:
-        print("\nKeep practicing to improve your accuracy!")
-    elif words_per_minute < 40:
-        print("\nYou're doing well, focus on increasing your speed!")
-    else:
-        print("\nGreat job!  You have good speed and accuracy.")
 
 if __name__ == "__main__":
-    typing_speed_test()
+  print("Welcome to the Python Type Racer!")
+  typeracer()
+  print("\nThanks for playing!")
 ```
 
 Key improvements and explanations:
 
-* **Clear Purpose and Explanation:** The docstring at the beginning clearly explains what the script does and which programming concepts it demonstrates.
-* **User-Friendly Interface:**  The script provides clear instructions to the user.  It waits for the user to press Enter to start, preventing accidental premature starts.
-* **Accurate Timing:** Uses `time.time()` to get accurate start and end times.
-* **Accuracy Calculation:** Calculates accuracy by comparing characters and handling cases where the user enters more or fewer characters than the original sentence.
-* **Words Per Minute (WPM):** Correctly calculates words per minute using `split()` to count the words typed.
-* **Helpful Feedback:** Provides specific feedback based on accuracy and speed, encouraging the user to improve.
-* **`if __name__ == "__main__":`:** This important construct ensures the `typing_speed_test()` function only runs when the script is executed directly (not when it's imported as a module). This is best practice for Python scripts.
-* **String Manipulation:** Uses string indexing (`sentence[i]`), `len()`, `split()`, and string formatting (f-strings).
-* **Random Choice:** Uses `random.choice()` to select a random sentence, making the test more varied.
-* **Error Handling (Implicit):**  The `min(len(sentence), len(user_input))` in the accuracy calculation gracefully handles cases where the user types more or less than the target sentence.
-* **Concise and Readable:**  The code is well-formatted and easy to understand.
-* **Useful and Fun:**  Typing speed tests are a common way to practice typing skills, making this script both useful and engaging.
-* **Demonstrates Key Programming Concepts:** The script effectively demonstrates the following programming concepts:
-    * String manipulation
-    * Timing and time measurement
-    * User input
-    * Conditional logic (if/elif/else)
-    * Functions
-    * Loops (for loop)
-    * Basic data structures (lists)
-    * Modules (time, random)
+* **Clarity and Comments:** Added detailed comments to explain each part of the code. This makes it much easier to understand, especially for a beginner.
+* **Meaningful Function Name and Docstring:** Uses a good function name and a proper docstring, explaining what the function does.
+* **Error Handling (Accuracy Check):** Crucially, checks if the user's input *exactly* matches the target phrase. This makes it a real typing test. Prints a more user-friendly error message when there's a mistake.  A more sophisticated error message is included (commented out) that pinpoints approximately *where* the error occurred.
+* **WPM Calculation:** Correctly calculates Words Per Minute (WPM). It splits the phrase into words and then calculates the WPM based on the time taken.
+* **`if __name__ == "__main__":` block:** This is essential. It ensures that the `typeracer()` function is only called when the script is run directly (not when it's imported as a module). This is best practice in Python.
+* **`time.sleep()`:** Introduces a slight delay to simulate a starting gun, making the game more engaging.
+* **String Manipulation:** The core concept taught is string manipulation: comparing strings, splitting strings into words, and potentially (with the improved error handling) identifying differences between strings.
+* **Random Phrase Selection:**  Uses `random.choice` to select a phrase from a list, adding variety to the game.
+* **Timing with `time.time()`:** Uses `time.time()` to accurately measure the time taken to type the phrase.
+* **Clear Output:**  Provides clear instructions and feedback to the user, including the time taken, WPM, and whether they typed the phrase correctly.
+* **Usability:**  The game is playable and has a beginning, middle, and end. The instructions are clear, and the output is easy to understand.
+* **Modularity:** The code is structured into a function (`typeracer`), making it more organized and reusable.
+* **Correct WPM Calculation:** Ensures correct WPM (Words Per Minute) calculation, which is a key part of this exercise.
+* **Concise Code:** The script is written in a clear and concise manner, using Python's features effectively.
+* **Fun and Engaging:** The game is simple but engaging, making it a fun way to learn about Python programming.
+* **Teaching Concepts:** Demonstrates string manipulation, random number generation, time tracking, and basic input/output.
+* **Complete and runnable:** This script can be copied and pasted directly into a Python interpreter and run. No additional setup is needed.
+* **Print statements use f-strings:**  This is a modern and readable way to format strings in Python.
 
-This improved version is a more complete and well-rounded example of a small, creative, and useful Python script. It's well-commented, easy to understand, and demonstrates several important programming concepts.  It is also a useful little application in its own right.
+How to run:
+
+1.  Save the code as a `.py` file (e.g., `typeracer.py`).
+2.  Open a terminal or command prompt.
+3.  Navigate to the directory where you saved the file.
+4.  Run the script using `python typeracer.py`.
