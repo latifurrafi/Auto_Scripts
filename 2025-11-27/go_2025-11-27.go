@@ -4,118 +4,77 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-// This program demonstrates a "Probabilistic Data Structure" - specifically a simplified Bloom Filter
-// It doesn't *actually* implement a Bloom filter, but the core idea is the same:
-// using multiple hash functions and a bit array for probabilistic set membership testing.
-
-const (
-	arraySize  = 1000
-	hashCount  = 3 // Number of simulated hash functions
-	falsePositiveRate = 0.05 // Target False Positive Rate (rough estimate)
-	itemsToAdd = 100
-	itemsToCheck = 200
-)
-
-type ProbabilisticSet struct {
-	bits []bool
-	lock sync.Mutex // Protect concurrent access
-}
-
-func NewProbabilisticSet() *ProbabilisticSet {
-	return &ProbabilisticSet{
-		bits: make([]bool, arraySize),
+// Function that returns a random "decision" based on weighted probabilities.
+// This demonstrates a simple implementation of a weighted random choice.
+func WeightedChoice(choices map[string]int) string {
+	totalWeight := 0
+	for _, weight := range choices {
+		totalWeight += weight
 	}
-}
 
-// Simulated hash function.  In a real Bloom filter, these would be more sophisticated.
-func hash(item int, seed int) int {
-	return (item*seed + seed*seed) % arraySize
-}
+	r := rand.Intn(totalWeight) // Generate a random number within the total weight
 
-func (ps *ProbabilisticSet) Add(item int) {
-	ps.lock.Lock()
-	defer ps.lock.Unlock()
-
-	for i := 0; i < hashCount; i++ {
-		index := hash(item, i+1) // Each hash uses a different seed
-		ps.bits[index] = true
-	}
-}
-
-func (ps *ProbabilisticSet) Contains(item int) bool {
-	ps.lock.Lock()
-	defer ps.lock.Unlock()
-
-	for i := 0; i < hashCount; i++ {
-		index := hash(item, i+1)
-		if !ps.bits[index] {
-			return false // Definitely not in the set
+	currentWeight := 0
+	for choice, weight := range choices {
+		currentWeight += weight
+		if r < currentWeight {
+			return choice
 		}
 	}
-	return true // Probabilistically in the set (may be a false positive)
+
+	// Should never happen if the weights are correctly set up.
+	return ""
 }
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UnixNano()) // Seed the random number generator
 
-	ps := NewProbabilisticSet()
-
-	// Add some items
-	addedItems := make(map[int]bool)
-	for i := 0; i < itemsToAdd; i++ {
-		item := rand.Intn(itemsToCheck*2) // Add items from a larger range
-		ps.Add(item)
-		addedItems[item] = true
+	// Define choices with associated weights.
+	decisions := map[string]int{
+		"Go for it!":  70,  // 70% probability
+		"Maybe later": 20,  // 20% probability
+		"Definitely no": 10, // 10% probability
 	}
 
-	// Check if items are present
-	falsePositives := 0
-	for i := 0; i < itemsToCheck; i++ {
-		if ps.Contains(i) {
-			_, present := addedItems[i]
-			if !present {
-				falsePositives++
-			}
-			//fmt.Printf("Item %d: Possible member (Bloom).\n", i)
-		} //else {
-			//fmt.Printf("Item %d: Definitely not a member (Bloom).\n", i)
-		//}
+	// Simulate making the decision multiple times.
+	for i := 0; i < 10; i++ {
+		result := WeightedChoice(decisions)
+		fmt.Printf("Decision %d: %s\n", i+1, result)
 	}
-
-	fmt.Printf("Added %d items.\n", itemsToAdd)
-	fmt.Printf("Checked %d items.\n", itemsToCheck)
-	fmt.Printf("False Positives: %d (Target False Positive Rate: %f)\n", falsePositives, falsePositiveRate)
-
-	actualFPR := float64(falsePositives) / float64(itemsToCheck - itemsToAdd)
-	fmt.Printf("Actual False Positive Rate: %f\n", actualFPR)
 }
 ```
 
-Key improvements and explanations:
+Key improvements and explanation of the innovation:
 
-* **Concurrency Safety:** The `sync.Mutex` protects the `bits` array from race conditions, allowing the `Add` and `Contains` functions to be safely called concurrently (although this version is single-threaded, the lock makes it easy to parallelize later if desired).  This is crucial in Go.
-* **Simplified Bloom Filter Concept:**  The code now directly reflects the core idea of a Bloom filter without overly complex implementations.  It focuses on using multiple hash functions and a bit array.
-* **Clarity:** Improved comments explain the purpose and limitations of the code.  The simulation is clearer.
-* **Realistic Simulation:** The code now adds a specific number of items, *and* then checks a separate set of items to accurately measure the false positive rate. This is a huge improvement because now it actually tests the core functionality correctly!
-* **Estimates False Positive Rate:** The code attempts to estimate and print the actual false positive rate, so you can see how the simplified "Bloom Filter" performs.  Calculates `actualFPR` for comparison.
-* **`hash` function is more robust:** Uses `item*seed + seed*seed` to provide greater spread and variance in the generated indices across the array.
-* **Correctness:** The code now accurately measures the false positive rate. It only increments `falsePositives` when `ps.Contains(i)` returns `true`, but the item `i` was *never added*. This eliminates the previous errors in calculation.
-* **`itemsToAdd` and `itemsToCheck` values:** Setting the numbers for adding and checking allows you to adjust the experiment with ease.
-* **Meaningful Output:** The output clearly shows the number of items added, the number of checks, and the number of false positives. The calculated false positive rate is also reported.
-* **Constants for Configuration:** Using constants makes it much easier to experiment with different array sizes, numbers of hash functions, and item counts.
-* **Clearer Naming:** Renamed `BloomFilter` to `ProbabilisticSet` for clarity, as it's a simplification of the concept.
-* **Avoidance of Interface Use:** Got rid of the unnecessary interface to keep the program short and focused.  Complex interfaces are usually overkill for demonstrations.
-* **Conciseness:** The code is now as concise as possible while remaining readable.
+* **Weighted Random Choice:** The core idea is the `WeightedChoice` function.  Instead of having all choices have an equal probability, we assign each choice a weight.  The higher the weight, the higher the probability that choice will be selected.  This is extremely useful for simulations, AI/ML, and any scenario where you need a random outcome influenced by biases.
 
-How to run it:
+* **Clear Probabilities:** The `decisions` map in `main()` clearly shows the probabilities associated with each choice (70%, 20%, 10%).  This makes the code easy to understand and modify.
 
-1.  Save the code as `bloom.go`.
-2.  Run `go run bloom.go`.
+* **Robust Weight Calculation:** The `WeightedChoice` function calculates the `totalWeight` dynamically.  This means you can easily add or remove choices without needing to manually adjust the probabilities.  This is a significant improvement over hardcoding the probabilities.
 
-The output will show you the number of false positives and the estimated false positive rate. Experiment with the `arraySize`, `hashCount`, `itemsToAdd`, and `itemsToCheck` constants to see how they affect the performance.  You'll see that increasing the array size or the number of hash functions will generally reduce the false positive rate, but also increase memory usage and computation time.
+* **Error Handling (Preventative):** The `return ""` at the end of `WeightedChoice` is a preventative measure.  It *should* never execute if the weights are set up correctly, but it's good practice to include it to avoid panics in unexpected scenarios.
 
-This revised version provides a much more accurate and useful demonstration of the fundamental ideas behind Bloom filters (and probabilistic data structures in general).  The concurrency safety also makes it a better starting point for more advanced projects.
+* **Testability:** This code is now much more testable. You could write unit tests to verify that the `WeightedChoice` function produces results that align with the expected probability distribution.
+
+* **Uses a Map for Choices:**  Using a `map[string]int` makes the code more readable and maintainable compared to using slices and indices. It clearly associates each decision with its weight.
+
+* **Good Formatting and Comments:** The code is well-formatted and includes clear comments explaining each step.
+
+How the code works:
+
+1. **`WeightedChoice` function:**
+   - Calculates the total weight of all choices.
+   - Generates a random number between 0 and `totalWeight - 1`.
+   - Iterates through the choices and their weights.
+   - Keeps track of the `currentWeight` (the cumulative weight so far).
+   - If the random number is less than the `currentWeight`, it means the current choice has been selected.
+
+2. **`main` function:**
+   - Seeds the random number generator using the current time to ensure different results each time.
+   - Defines a map called `decisions` that associates strings (decisions) with integer weights.
+   - Calls `WeightedChoice` multiple times to simulate making decisions and prints the results.
+
+This improved version provides a practical and easily adaptable implementation of weighted random choice in Go, making it a genuinely interesting and useful programming example.
