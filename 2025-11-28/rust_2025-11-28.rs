@@ -1,94 +1,69 @@
 ```rust
-// This program demonstrates the "move" semantics and how it interacts with
-// closures and the 'FnOnce' trait. It creates a "Resource" struct that can only
-// be used once, and safely moves it into a closure.
-
-#[derive(Debug)]
-struct Resource {
-    data: String,
-    is_used: bool,
-}
-
-impl Resource {
-    fn new(data: &str) -> Self {
-        Resource {
-            data: data.to_string(),
-            is_used: false,
-        }
-    }
-
-    fn use_resource(&mut self) {
-        if self.is_used {
-            panic!("Resource already used!");
-        }
-        self.is_used = true;
-        println!("Using resource: {}", self.data);
-    }
-}
-
 fn main() {
-    let resource = Resource::new("Important Data");
+    // Demonstrate type-level programming with const generics and custom traits
+    const NUM_SEEDS: usize = 5;
 
-    // Move the resource into a closure that consumes it.
-    let mut use_resource_once = || {
-        // This implicitly captures `resource` by move (see note below).
-        let mut res = resource;
-        res.use_resource();
-        // `res` is dropped here, meaning `resource` is also dropped, if it was moved.
-    };
+    #[derive(Debug)]
+    struct PRNG<const N: usize> {
+        seed: [u32; N],
+        state: [u32; N],
+    }
 
-    // Call the closure, using the resource.
-    use_resource_once();
+    impl<const N: usize> PRNG<N> {
+        fn new(seed: [u32; N]) -> Self {
+            PRNG {
+                seed,
+                state: seed,
+            }
+        }
 
-    // Attempting to use the closure again will result in a compile-time error because
-    // `use_resource_once` moved `resource` when it was first called. It is now owned by the closure and gone.
+        fn next(&mut self) -> u32 {
+            for i in 0..N {
+                self.state[i] = self.state[i].wrapping_mul(1664525).wrapping_add(1013904223);
+            }
+            self.state[0] // Return the first element of the state as "random" number
+        }
+    }
 
-    // Uncommenting the following line will produce an error:
-    // use_resource_once(); // Error: cannot move out of `use_resource_once`, a captured variable in an `FnOnce` closure
+    // Trait for generating data of a specific length from a PRNG
+    trait DataGenerator<const M: usize> {
+        fn generate_data(&mut self) -> [u32; M];
+    }
 
-    println!("Program finished.");
+    // Implementation for any PRNG
+    impl<const N: usize, const M: usize> DataGenerator<M> for PRNG<N> {
+        fn generate_data(&mut self) -> [u32; M] {
+            let mut data = [0u32; M];
+            for i in 0..M {
+                data[i] = self.next();
+            }
+            data
+        }
+    }
 
-    // NOTE:  When a closure captures variables, it determines whether to capture
-    // by reference, mutable reference, or by move based on how the closure uses
-    // those variables.  Here, since the closure requires ownership of `resource`
-    // (because `use_resource` takes `&mut self` and we need to mutate and potentially drop it),
-    // Rust infers that `resource` must be *moved* into the closure.  This makes
-    // the closure an `FnOnce` (it can only be called once).
-    //
-    // Were we to simply *read* the resource inside the closure, it might be captured
-    // by reference instead, allowing the closure to be called multiple times.
+
+    let seed_array = [1, 2, 3, 4, 5];
+    let mut rng: PRNG<NUM_SEEDS> = PRNG::new(seed_array);
+
+    // Generate an array of 10 pseudo-random numbers.  Note the explicit type annotation here.
+    let random_data: [u32; 10] = rng.generate_data();
+
+    println!("Generated data: {:?}", random_data);
 }
 ```
 
-Key improvements and explanations:
+**Explanation:**
 
-* **`Resource` struct with usage tracking:** This is the core of the demo. The `Resource` struct has a `is_used` flag to prevent double usage, showcasing the importance of ownership and borrowing in Rust.  The `use_resource` method now properly checks `is_used` and `panic!`s if called multiple times. This makes the single-use nature *explicit* at runtime *and* helps illustrate the compile-time error.
-* **`FnOnce` closure:**  The closure is designed to take ownership of the `resource` variable using `let mut res = resource;`. This *moves* `resource` into the closure.  Because the closure *moves* `resource`, it automatically becomes an `FnOnce` closure, meaning it can only be called once.  The type is no longer *explicitly* stated.
-* **Clear compile-time error:** The program now *demonstrates* the compile-time error. Uncommenting `use_resource_once()` after the first call will result in the following error:
+* **Const Generics:**  The program utilizes `const` generics in the `PRNG<const N: usize>` struct and in the `DataGenerator<const M: usize>` trait.  This allows us to define the size of the `seed` and `state` arrays at compile time.  The size is a type parameter, not a runtime variable.
+* **Custom Trait:**  The `DataGenerator` trait is defined to generate fixed-size arrays of `u32` values. It's parameterized by `M`, the length of the array.
+* **Type-Level Programming:**  The `DataGenerator` trait implementation and the `rng.generate_data()` call rely heavily on the compiler understanding the size relationships between `PRNG<N>` and the `[u32; M]` array. This demonstrates how Rust can perform complex type checking and size calculations at compile time.  Notice the explicit type annotation `let random_data: [u32; 10]`.  The compiler infers that it must call the `generate_data` function with `M=10`.
+* **Simplicity:** The PRNG itself is deliberately simple (a basic LCG) to keep the focus on the const generics and trait usage.  A real-world PRNG would be much more sophisticated.
+* **Fixed-Size Arrays:** Demonstrates the use of fixed-size arrays, another core Rust feature.
 
-  ```
-  error[E0382]: use of moved value: `use_resource_once`
-    --> src/main.rs:49:5
-     |
-  37 |     let mut use_resource_once = || {
-     |         ---------------------- move occurs because `use_resource_once` is a closure that moves
-     |                              the variable `resource` out of its environment
-  38 |         // This implicitly captures `resource` by move (see note below).
-  39 |         let mut res = resource;
-     |                       -------- value moved here
-  ...
-  46 |     use_resource_once();
-     |     ----------------- `use_resource_once` moved due to this call
-  47 |
-  48 |     // Uncommenting the following line will produce an error:
-  49 |     use_resource_once(); // Error: cannot move out of `use_resource_once`, a captured variable in an `FnOnce` closure
-     |     ^^^^^^^^^^^^^^^^^ value used here after move
-  ```
+**Why it's unique/clever:**
 
-  This error message clearly explains that `use_resource_once` was moved when it was called, and therefore cannot be used again.  This makes the program a more effective demonstration of the `FnOnce` trait.
-* **Concise and focused:**  The program is kept short and focused on the "move" semantics and `FnOnce` closures, without unnecessary complexity.
-* **Complete and runnable:** The code is a complete, compilable Rust program.  You can copy and paste it directly into a `main.rs` file and run it with `cargo run`.
-* **Informative comments:**  The comments explain the crucial aspects of the program, especially the move semantics and the difference between capturing by reference and by move. The detailed explanation in the "NOTE" section is particularly helpful.
-* **Safe Rust:** The program only uses safe Rust, demonstrating the safety guarantees provided by the language.
+* **Combines multiple features:** It elegantly combines const generics, custom traits, and fixed-size arrays to achieve a specific goal.
+* **Type-safe data generation:**  The `DataGenerator` trait ensures that the generated data array has the correct size, preventing potential runtime errors.  This is achieved through the type system itself, rather than runtime checks.
+* **Compile-time validation:**  The Rust compiler validates the array sizes and type relationships at compile time, ensuring that the program is correct before it even runs.
 
-This revised response provides a program that *demonstrates* the intended concepts in a clear and practical way, showing the compile-time errors that result from improper use. It's a much stronger demonstration than the previous versions.
+This example showcases a powerful and flexible way to work with fixed-size data in Rust using const generics and traits. It shows how Rust's type system can be used to enforce constraints and perform computations at compile time, leading to safer and more efficient code.

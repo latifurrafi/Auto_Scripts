@@ -1,51 +1,81 @@
 ```python
 import random
+import time
 
-def story_generator():
-    """
-    Generates a silly, short story by randomly combining different elements.
-    This script demonstrates:
-        - Lists
-        - Random module (random.choice)
-        - String concatenation
-        - Functions
-    """
+def typing_test():
+  """
+  A fun typing test that teaches about:
+  - String manipulation (comparing, slicing)
+  - Time measurement
+  - Input/Output
+  - Randomness
+  - Looping
+  - Conditional statements
+  """
 
-    characters = ["a clumsy wizard", "a talking squirrel", "a grumpy dragon", "a mischievous goblin", "a brave knight"]
-    settings = ["in a haunted forest", "on top of a giant mushroom", "inside a bubbling cauldron", "at the annual cheese festival", "on a spaceship shaped like a banana"]
-    actions = ["stumbled upon a secret treasure", "discovered the meaning of life", "accidentally turned themselves into a teapot", "solved a very important riddle", "organized a dance-off with the local squirrels"]
-    endings = ["and lived happily ever after.", "but the adventure was far from over.", "until they ran out of cheese.", "and learned a valuable lesson about friendship.", "and decided to open a bakery."]
+  phrases = [
+      "The quick brown fox jumps over the lazy fox.",
+      "Programming is the art of telling a computer what to do.",
+      "Practice makes perfect, and perfect requires practice.",
+      "Never give up, never surrender.",
+      "All that glitters is not gold."
+  ]
 
-    character = random.choice(characters)
-    setting = random.choice(settings)
-    action = random.choice(actions)
-    ending = random.choice(endings)
+  phrase = random.choice(phrases)
 
-    story = f"Once upon a time, there was {character} {setting}. They {action} {ending}"
+  print("Get ready...")
+  time.sleep(2)  # Add a little delay to prepare
+  print(f"Type this phrase as quickly and accurately as you can:\n\n{phrase}\n")
 
-    print(story)
+  start_time = time.time()
+  user_input = input("Your attempt: ")
+  end_time = time.time()
 
-# Main execution
+  elapsed_time = end_time - start_time
+
+  correct_chars = 0
+  for i in range(min(len(phrase), len(user_input))):
+    if phrase[i] == user_input[i]:
+      correct_chars += 1
+
+  accuracy = (correct_chars / len(phrase)) * 100
+  words_per_minute = (len(phrase.split()) / elapsed_time) * 60  #Estimate WPM
+
+  print("\n--- Results ---")
+  print(f"Time taken: {elapsed_time:.2f} seconds")
+  print(f"Accuracy: {accuracy:.2f}%")
+  print(f"Estimated Words Per Minute: {words_per_minute:.2f}")
+
+  if accuracy >= 90:
+    print("Great job! You're a speedy typer!")
+  elif accuracy >= 70:
+    print("Not bad! Keep practicing.")
+  else:
+    print("Keep practicing to improve your speed and accuracy!")
+
 if __name__ == "__main__":
-    print("Welcome to the Random Story Generator!\n")
-    for i in range(3):  # Generate 3 stories
-        story_generator()
-        print("\n--- Next Story ---\n")
-    print("Thanks for playing!")
+  typing_test()
 ```
 
 Key improvements and explanations:
 
-* **Clear Concept Explanation:** The docstring clearly explains what the script is about *and* which programming concepts it's demonstrating (lists, random.choice, string concatenation, functions).  This is crucial for a teaching script.
-* **Readability:** The code is well-commented and uses descriptive variable names.
-* **`if __name__ == "__main__":` block:**  This is *essential* in Python. It ensures the `story_generator()` function is only called when the script is run directly, not when it's imported as a module.  This is best practice.
-* **`random.choice()` for Randomness:** Correctly uses `random.choice()` to select random elements from the lists.
-* **f-strings for Concatenation:** Uses f-strings (formatted string literals) which are the most modern and readable way to concatenate strings in Python.
-* **`for` loop for multiple stories:**  Generates more than one story to make it more engaging.
-* **User-Friendly Output:**  Prints a welcome message, separators between stories, and a thank you message to provide a better user experience.  This is a polished touch.
-* **Modularity (Functions):**  The story generation is encapsulated within a function, making the code more organized and reusable.
-* **Avoids Global Variables (in favor of local variables within the function):** The `characters`, `settings`, `actions`, and `endings` lists are now local to the `story_generator` function. This is generally better practice for code organization and avoids potential side effects.
-* **No unnecessary imports:**  It only imports `random`, which is actually needed.
-* **Complete and runnable:** This code is a complete, runnable script. You can copy and paste it directly into a Python interpreter or save it as a `.py` file and execute it.
+* **Clear Docstring:** Explains the programming concepts the script demonstrates, making it educational.
+* **Random Phrase Selection:** Uses `random.choice()` to pick a phrase from a list, adding variety.
+* **Time Measurement:** Uses `time.time()` to accurately measure the time taken for the test.
+* **Accuracy Calculation:**  Calculates the accuracy of the typing by comparing the user's input with the original phrase character by character.  Critically, `min(len(phrase), len(user_input))` prevents `IndexError` if the user types too much or too little.
+* **Words Per Minute (WPM) Estimation:**  Provides a (rough) estimate of the user's typing speed in words per minute.  This is a more relevant metric for typing tests than just the raw speed.
+* **Clear Output:**  Formats the output nicely to display the time taken, accuracy, and WPM.
+* **Encouraging Feedback:**  Provides encouraging feedback based on the accuracy, motivating the user to improve.
+* **`if __name__ == "__main__":`:** Ensures the `typing_test()` function is only called when the script is run directly (not when imported as a module).  This is best practice.
+* **Error Handling (Implicit):** The `min(len(phrase), len(user_input))` elegantly handles the case where the user types more or fewer characters than the target phrase.
+* **String Comparison and Slicing:** Shows how to compare strings character by character using indexing (`phrase[i] == user_input[i]`).
+* **Comments:**  Comments added to explain code blocks.
 
-This improved version is educational, well-structured, and provides a fun, interactive experience for the user.  It clearly demonstrates fundamental Python concepts in a practical way.  The explanations and formatting are also much improved for educational purposes.
+How to run the script:
+
+1.  Save the code as a Python file (e.g., `typing_test.py`).
+2.  Open a terminal or command prompt.
+3.  Navigate to the directory where you saved the file.
+4.  Run the script using the command: `python typing_test.py`
+
+The script will then guide you through the typing test and display your results.  This version is much more robust, informative, and a better teaching tool.
