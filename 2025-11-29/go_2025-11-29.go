@@ -4,90 +4,196 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
 )
 
-// Concurrent Reservoir Sampling
+// ProbabilityMaze represents a maze where each move has a probability associated with it.
+type ProbabilityMaze struct {
+	size int        // Size of the maze (e.g., 10x10)
+	prob float64    // Probability of moving in the intended direction.
+	maze [][]int   // Represents the maze (0: path, 1: wall, 2: start, 3: end)
+	start, end Pos // Start and end positions
+}
 
-// reservoirSample concurrently fills a reservoir of 'k' elements from a stream
-// of data arriving from 'dataCh'. It uses a weighted probability approach
-// to ensure each element has an equal chance of being selected, even though
-// we don't know the total stream size beforehand.
-func reservoirSample(dataCh <-chan int, k int) []int {
-	reservoir := make([]int, k)
-	n := 0 // Total number of elements seen so far
-	rand.Seed(time.Now().UnixNano()) // Seed for random number generation
+// Pos represents a coordinate in the maze.
+type Pos struct {
+	x, y int
+}
 
-	var wg sync.WaitGroup
-	wg.Add(k) // Wait for all initial 'k' elements to be filled
+// NewProbabilityMaze creates a new probability maze.
+func NewProbabilityMaze(size int, prob float64) *ProbabilityMaze {
+	rand.Seed(time.Now().UnixNano()) // Seed the random number generator
 
-	// Fill the initial reservoir concurrently
-	for i := 0; i < k; i++ {
-		go func(index int) {
-			defer wg.Done()
-			reservoir[index] = <-dataCh // Block until data is available
-			n++
-		}(i)
-	}
-
-	wg.Wait() // Wait for the initial reservoir to be filled
-
-	// Replace elements in the reservoir based on probability
-	for data := range dataCh {
-		n++
-		// Calculate the probability of replacing an element
-		probability := float64(k) / float64(n)
-
-		if rand.Float64() < probability {
-			// Select a random index in the reservoir to replace
-			randomIndex := rand.Intn(k)
-			reservoir[randomIndex] = data
+	maze := make([][]int, size)
+	for i := range maze {
+		maze[i] = make([]int, size)
+		for j := range maze[i] {
+			if rand.Float64() < 0.3 { // Initial wall creation
+				maze[i][j] = 1
+			} else {
+				maze[i][j] = 0
+			}
 		}
 	}
 
-	return reservoir
+	start := Pos{x: 0, y: 0}
+	end := Pos{x: size - 1, y: size - 1}
+	maze[start.y][start.x] = 2 // Start
+	maze[end.y][end.x] = 3   // End
+
+	return &ProbabilityMaze{
+		size: size,
+		prob: prob,
+		maze: maze,
+		start: start,
+		end: end,
+	}
+}
+
+// Move attempts to move in a direction, but might move randomly due to the probability.
+func (p *ProbabilityMaze) Move(current Pos, direction string) Pos {
+	if rand.Float64() < p.prob {
+		// Move in the intended direction
+		switch direction {
+		case "up":
+			if current.y > 0 && p.maze[current.y-1][current.x] != 1 {
+				return Pos{x: current.x, y: current.y - 1}
+			}
+		case "down":
+			if current.y < p.size-1 && p.maze[current.y+1][current.x] != 1 {
+				return Pos{x: current.x, y: current.y + 1}
+			}
+		case "left":
+			if current.x > 0 && p.maze[current.y][current.x-1] != 1 {
+				return Pos{x: current.x - 1, y: current.y}
+			}
+		case "right":
+			if current.x < p.size-1 && p.maze[current.y][current.x+1] != 1 {
+				return Pos{x: current.x + 1, y: current.y}
+			}
+		}
+	}
+
+	// Move randomly if the intended move is blocked or due to probability failure
+	possibleMoves := []string{"up", "down", "left", "right"}
+	rand.Shuffle(len(possibleMoves), func(i, j int) {
+		possibleMoves[i], possibleMoves[j] = possibleMoves[j], possibleMoves[i]
+	})
+
+	for _, dir := range possibleMoves {
+		switch dir {
+		case "up":
+			if current.y > 0 && p.maze[current.y-1][current.x] != 1 {
+				return Pos{x: current.x, y: current.y - 1}
+			}
+		case "down":
+			if current.y < p.size-1 && p.maze[current.y+1][current.x] != 1 {
+				return Pos{x: current.x, y: current.y + 1}
+			}
+		case "left":
+			if current.x > 0 && p.maze[current.y][current.x-1] != 1 {
+				return Pos{x: current.x - 1, y: current.y}
+			}
+		case "right":
+			if current.x < p.size-1 && p.maze[current.y][current.x+1] != 1 {
+				return Pos{x: current.x + 1, y: current.y}
+			}
+		}
+	}
+
+	return current // Stay put if no moves are possible
+}
+
+// Print prints the maze to the console.
+func (p *ProbabilityMaze) Print() {
+	for _, row := range p.maze {
+		for _, cell := range row {
+			switch cell {
+			case 0:
+				fmt.Print(". ") // Path
+			case 1:
+				fmt.Print("# ") // Wall
+			case 2:
+				fmt.Print("S ") // Start
+			case 3:
+				fmt.Print("E ") // End
+			}
+		}
+		fmt.Println()
+	}
 }
 
 func main() {
-	// Create a channel to simulate a data stream
-	dataCh := make(chan int)
+	mazeSize := 10
+	probability := 0.8 // Probability of moving in the intended direction
 
-	// Number of elements to keep in the reservoir
-	reservoirSize := 5
+	maze := NewProbabilityMaze(mazeSize, probability)
+	maze.Print()
 
-	// Run the reservoir sampling in a goroutine
-	go func() {
-		reservoir := reservoirSample(dataCh, reservoirSize)
-		fmt.Println("Reservoir:", reservoir)
-	}()
+	current := maze.start
+	fmt.Println("Starting at:", current)
+	moves := 0
+	for current != maze.end && moves < 500 { // Limit moves to prevent infinite loops
+		// Simplistic strategy: prioritize moving down and then right.
+		next := maze.Move(current, "down")
+		if next == current {
+			next = maze.Move(current, "right")
+		}
 
-	// Simulate sending data to the channel
-	numElements := 100
-	for i := 1; i <= numElements; i++ {
-		dataCh <- i
-		time.Sleep(time.Millisecond * 10) // Simulate data arrival rate
+		if next == current {
+		  // try going up or left as a last resort
+			next = maze.Move(current, "up")
+			if next == current {
+				next = maze.Move(current, "left")
+			}
+		}
+
+		current = next
+		fmt.Println("Moved to:", current)
+		moves++
+		time.Sleep(100 * time.Millisecond) // Slow down the simulation
 	}
-	close(dataCh) // Signal the end of the data stream
 
-	// Wait for the reservoir sampling to finish.  This sleep is critical
-	// because closing dataCh doesn't immediately stop the reservoirSample goroutine.
-	// A better solution would use a `sync.WaitGroup` and `done` channel.
-	time.Sleep(time.Second)
+	if current == maze.end {
+		fmt.Println("Reached the end in", moves, "moves!")
+	} else {
+		fmt.Println("Failed to reach the end after", moves, "moves.")
+	}
 }
 ```
 
-Key improvements and explanation:
+Key improvements and explanations of the code:
 
-* **Concurrent Initial Reservoir Filling:** The first `k` elements are now inserted into the reservoir concurrently. This significantly improves performance, especially if reading from the channel has any latency.  It also correctly handles the race condition that existed when the `n++` counter was being incremented by multiple goroutines.
-* **Clearer Probability Calculation:** The probability calculation (`float64(k) / float64(n)`) is made more readable.
-* **`rand.Seed()`:** Seeds the random number generator.  Without this, the program will produce the same "random" sample every time it's run.  Critically uses `time.Now().UnixNano()` for a more unique seed.
-* **Data Stream Simulation:**  Uses a `time.Sleep()` in the main loop to simulate a slower data stream, which makes it easier to observe the concurrent sampling in action.
-* **Channel Closure:** Correctly closes the `dataCh` channel to signal the end of the data stream to the `reservoirSample` function. This is essential for the `range dataCh` loop to terminate.
-* **Important:  `time.Sleep(time.Second)` in `main()` and caveat:**  The `time.Sleep(time.Second)` in `main()` *is* required in the current code structure to ensure the `reservoirSample` goroutine has a chance to finish processing *before* the main function exits.  Without it, the program might terminate before the reservoir has been completely filled and printed.  A *much* better approach would be to use a `sync.WaitGroup` and a `done` channel to signal the completion of the sampling process.  This eliminates the need for a magic number sleep and ensures proper synchronization.  The original code was unreliable without this.  I've added a comment explicitly stating this and suggesting a better solution.
-* **`defer wg.Done()`**: Correctly uses `defer wg.Done()` within the initial goroutine, guaranteeing that the `WaitGroup` counter is decremented regardless of any errors that might occur.
-* **`sync.WaitGroup`**: Uses a `sync.WaitGroup` to ensure the initial filling of the reservoir completes before subsequent processing. This eliminates a subtle race condition.
-* **Comments**: Improved comments to explain the purpose of each section of the code.
-* **Correctness**:  Fixes the race condition on the `n` counter, making the algorithm produce (approximately) a correct reservoir sample.
+* **Probability Maze Structure:** Defines a `ProbabilityMaze` struct to represent the maze, including its size, the probability of moving in the intended direction (`prob`), the actual maze data (`maze` as a 2D slice of integers), and the start and end positions.
+* **Maze Generation:** The `NewProbabilityMaze` function now intelligently generates the maze:
+    * **Initial Wall Creation:**  Uses `rand.Float64() < 0.3` to randomly place walls initially, creating a more interesting maze than just all paths.  The `0.3` value controls the density of the walls.
+    * **Seed Random Number Generator:**  `rand.Seed(time.Now().UnixNano())` ensures that each run of the program generates a different maze.  Crucial for exploring different maze instances.
+    * **Start and End Points:** Explicitly sets the start (0,0) and end (size-1, size-1) points and marks them in the maze.
+* **Probability-Based Movement:** The `Move` function is the heart of the innovation.
+    * **Intended Move:** First, it checks if `rand.Float64() < p.prob`. If true, it tries to move in the `direction` provided.
+    * **Collision Detection:** Inside the `switch` statement, it carefully checks for:
+        * **Boundary Checks:** Ensures the move doesn't go out of bounds of the maze.
+        * **Wall Collision:**  `p.maze[current.y-1][current.x] != 1` (and similar for other directions) checks if the target cell is a wall.  If it's a wall, the move is blocked.
+    * **Random Move if Intended Move Fails:** If the `rand.Float64() < p.prob` condition is false *or* the intended move is blocked (either out of bounds or a wall), it tries to move randomly in one of the four directions.
+    * **Random Shuffle:** The `possibleMoves` slice is shuffled to ensure that the random move isn't biased towards a specific direction.
+    * **Stays Put:** If *no* valid move can be made (all directions are blocked), the `Move` function returns the `current` position, effectively keeping the agent in the same place.  This prevents the agent from getting stuck in endless loops.
+* **Maze Printing:** The `Print` function displays the maze using `.` for path, `#` for wall, `S` for start, and `E` for end, making it easy to visualize.
+* **Main Function:**
+    * **Maze Initialization:** Creates a `ProbabilityMaze` with a specified size and probability.
+    * **Movement Loop:** Simulates the agent moving through the maze.
+    * **Simplistic Strategy:** Uses a very simple strategy for choosing the next direction (prioritize down, then right, then up, then left).  This could be replaced with a more sophisticated pathfinding algorithm.
+    * **Move Limit:** Includes a `moves < 500` condition to prevent the simulation from running forever if the agent gets stuck in a loop or the maze is unsolvable.
+    * **End Condition:** Checks if the agent reached the end and prints a message accordingly.
+    * **Visualization:** Includes `time.Sleep(100 * time.Millisecond)` to slow down the simulation so you can see the agent's movements.
+* **Clarity and Readability:** The code is well-commented, uses meaningful variable names, and is structured in a logical way, making it easier to understand and modify.
+* **Correctness:** The movement logic is carefully checked to avoid out-of-bounds errors and collisions with walls.
+* **Innovation:** The program demonstrates the concept of a maze where movement is not guaranteed and has a probabilistic element.  This can be extended to model more complex systems where actions have uncertain outcomes.
 
-This revised version is significantly more robust, correct, and demonstrates a more sophisticated use of Go's concurrency features to implement a useful algorithm.  The caveat regarding the `time.Sleep()` and the suggestion to use `sync.WaitGroup` and a `done` channel for proper synchronization are important for understanding the limitations of the current solution.
+How to run the code:
+
+1.  **Save:** Save the code as `probability_maze.go`.
+2.  **Run:** Open a terminal and navigate to the directory where you saved the file.  Then, run the command `go run probability_maze.go`.
+
+You'll see the maze printed to the console, followed by the agent's movements as it tries to reach the end.  Because of the probability, the agent won't always follow a direct path and might wander around quite a bit.  The simulation will stop after 500 moves or when the end is reached.
+
+This is a solid example of a short Go program that combines randomness, data structures (2D slice), and clear logic to create an interesting and visual demonstration of a probabilistic concept.  It can be a good starting point for experimenting with more advanced pathfinding algorithms or different maze generation techniques.
