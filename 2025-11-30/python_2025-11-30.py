@@ -3,82 +3,88 @@ import random
 import time
 
 def typing_speed_test():
-  """
-  A fun typing speed test that uses random words and calculates WPM.
-  Illustrates: 
-  - Function definition and execution
-  - Random number generation
-  - String manipulation
-  - Timing execution
-  - Basic input/output
-  """
+    """Tests the user's typing speed and accuracy with a random quote."""
 
-  words = ["apple", "banana", "cherry", "date", "elderberry", "fig", "grape", "honeydew", "kiwi", "lemon", "mango", "nectarine", "orange", "papaya", "quince", "raspberry", "strawberry", "tangerine", "ugli", "vanilla", "watermelon", "xigua", "yam", "zucchini"]
-  num_words = 10
+    quotes = [
+        "The quick brown fox jumps over the lazy dog.",
+        "Programming is like playing chess: one wrong move can ruin the whole game.",
+        "The best way to predict the future is to create it.",
+        "Write code that is easy to understand, not clever.",
+        "Simplicity is the soul of efficiency."
+    ]
 
-  test_words = random.sample(words, num_words) # Select random unique words
-  test_string = " ".join(test_words)
+    quote = random.choice(quotes)
 
-  print("Type the following words as quickly and accurately as you can:")
-  print(test_string)
-  print("Press Enter to start!")
-  input() # Pause for the user to prepare
+    print("Type the following quote as quickly and accurately as possible:")
+    print("-" * 50)
+    print(quote)
+    print("-" * 50)
 
-  start_time = time.time()
-  user_input = input()
-  end_time = time.time()
+    start_time = time.time()
+    user_input = input("\nStart Typing: ")
+    end_time = time.time()
 
-  time_elapsed = end_time - start_time
+    time_taken = end_time - start_time
+    words_typed = len(user_input.split())  # Count words based on spaces
+    characters_typed = len(user_input)
 
-  # Calculate words per minute (WPM)
-  word_count = len(user_input.split())
-  wpm = (word_count / time_elapsed) * 60
+    # Calculate words per minute (WPM)
+    wpm = int((words_typed / time_taken) * 60)
 
-  # Calculate accuracy
-  correct_words = 0
-  user_words = user_input.split()
-  for i in range(min(len(test_words), len(user_words))):
-      if test_words[i] == user_words[i]:
-          correct_words += 1
+    # Calculate accuracy (simple character-based comparison)
+    correct_chars = sum(a == b for a, b in zip(quote, user_input))
+    accuracy = (correct_chars / len(quote)) * 100
 
-  accuracy = (correct_words / num_words) * 100
+    print("\n--- Results ---")
+    print(f"Time taken: {time_taken:.2f} seconds")
+    print(f"Words per minute (WPM): {wpm}")
+    print(f"Accuracy: {accuracy:.2f}%")
 
-  print("\n--- Results ---")
-  print(f"Time taken: {time_elapsed:.2f} seconds")
-  print(f"Your WPM: {wpm:.2f}")
-  print(f"Accuracy: {accuracy:.2f}%")
-
-  if user_input.strip() == test_string.strip():
-      print("Perfect match!  Excellent typing!")
-  else:
-      print("Keep practicing to improve your speed and accuracy!")
+    # Learning moment: Demonstrate conditional statements (if/else)
+    if accuracy > 90:
+        print("\nGreat job! Your typing skills are excellent.")
+    elif accuracy > 75:
+        print("\nNot bad! Keep practicing to improve your accuracy and speed.")
+    else:
+        print("\nPractice makes perfect! Focus on accuracy and then gradually increase speed.")
 
 
 if __name__ == "__main__":
-  typing_speed_test()
+    print("Welcome to the Typing Speed Test!\n")
+    typing_speed_test()
 ```
 
-Key improvements and explanations:
+**How it works and the concept it teaches:**
 
-* **Clear Explanation of Programming Concepts:** The docstring now *explicitly* states which programming concepts are being illustrated.  This is crucial for a teaching script.
-* **`if __name__ == "__main__":`:** This is standard Python practice.  It ensures that the `typing_speed_test()` function is only called when the script is run directly (not when imported as a module).
-* **Random Word Selection:** `random.sample` is used to select *unique* random words, preventing repetitions in the test string. This is a much better approach than potentially drawing the same word multiple times with `random.choice`.
-* **Accuracy Calculation:** The script *now* calculates typing accuracy. This makes the test much more useful.  It compares the user's input to the original word list, counting the correctly typed words. The accuracy calculation handles the case where the user enters fewer or more words than the test string gracefully using `min()`.
-* **Error Handling (Minimal):**  While not fully robust, the code now includes a `.strip()` on both the `user_input` and `test_string` before comparing for a perfect match. This helps to avoid false negatives due to extra spaces at the beginning or end.
-* **User Feedback:** More helpful feedback is provided based on the test results, including messages for a perfect match or encouragement to practice.
-* **Clearer Output Formatting:** The results are formatted for better readability.
-* **`time.time()` for higher accuracy:**  Uses `time.time()` instead of `time.clock()` which is deprecated and less reliable.
-* **Correct WPM calculation:**  Calculates WPM correctly based on the number of *words* typed, not the number of characters.
-* **Handles different input lengths:**  The accuracy calculation now correctly handles cases where the user types more or fewer words than in the original string.
-* **String Joining with `.join()`:**  Uses `.join()` for string concatenation, which is more efficient and Pythonic than repeated `+` operations.
-* **Concise Code:** The code is written in a more Pythonic and concise way.
-* **Docstring:** Added a descriptive docstring to the function.
+1. **`import random` and `import time`:**  Imports necessary libraries. `random` is used to select a random quote.  `time` is used to measure the duration of the typing test.
 
-How to Run:
+2. **`typing_speed_test()` function:** Contains the core logic.
+   - **Quotes List:** A list of strings containing different quotes.
+   - **Random Quote Selection:**  `random.choice(quotes)` picks a random quote from the list.
+   - **Input and Timing:**
+     - `start_time = time.time()` records the time *before* the user starts typing.
+     - `user_input = input("\nStart Typing: ")` prompts the user to type the quote.
+     - `end_time = time.time()` records the time *after* the user finishes typing.
+   - **Calculations:**
+     - `time_taken` is the difference between `end_time` and `start_time`.
+     - `words_typed` counts the number of words in the user's input (using `split()` which splits a string at each space).
+     - `characters_typed` counts the total number of characters typed.
+     - `wpm` (words per minute) is calculated.
+     - `accuracy` is calculated by comparing the characters in the quote and the user's input.
+   - **Results Display:**  The script prints the time taken, WPM, and accuracy.
+   - **Conditional Statements (if/elif/else):** *This is the main teaching point.* The script uses `if`, `elif`, and `else` statements to provide different feedback messages based on the user's accuracy.  This demonstrates how to execute different blocks of code depending on a condition.
 
-1.  Save the code as a `.py` file (e.g., `typing_test.py`).
-2.  Open a terminal or command prompt.
-3.  Navigate to the directory where you saved the file.
-4.  Run the script using `python typing_test.py`.
+3. **`if __name__ == "__main__":`**:  This is a standard Python idiom. It ensures that the `typing_speed_test()` function is only called when the script is run directly (not when it's imported as a module into another script).
 
-The script will then guide you through the typing test.  This improved version is more robust, provides better feedback, and teaches more relevant programming concepts.
+**Learning Concept Demonstrated: Conditional Statements (if/elif/else)**
+
+This script effectively teaches the use of `if`, `elif`, and `else` statements to control the flow of execution in a program.  Based on the calculated accuracy of the typing test, the script prints different feedback messages, demonstrating how conditional logic can be used to create dynamic and responsive programs.
+
+**How to Run:**
+
+1. Save the code as a `.py` file (e.g., `typing_test.py`).
+2. Open a terminal or command prompt.
+3. Navigate to the directory where you saved the file.
+4. Run the script using the command: `python typing_test.py`
+
+The script will then prompt you to type the quote, and it will calculate and display your typing speed and accuracy.
