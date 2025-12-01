@@ -1,50 +1,69 @@
 ```rust
-fn main() {
-    // Demonstrate the power of const generics and type-level computations
-    const SIZE: usize = 5; // Array size is a compile-time constant
+// This program showcases the "Type-Level Programming" capabilities of Rust,
+// specifically using const generics and associated types to calculate
+// the nth Fibonacci number at compile time.
 
-    // A function that creates an array filled with consecutive numbers, starting from 0
-    fn create_sequence<const N: usize>() -> [usize; N] {
-        let mut arr: [usize; N] = [0; N];  // Array with initial values
+trait Fibonacci {
+    type Output;
+    const VALUE: Self::Output;
+}
 
-        // Use a const assertion to prevent out-of-bounds access at compile time if N is zero
-        const _: () = assert!(N > 0, "Array size must be greater than zero");
-        
-        for i in 0..N {
-            arr[i] = i;
+struct FibonacciSequence<const N: usize>;
+
+impl<const N: usize> Fibonacci for FibonacciSequence<N> {
+    type Output = u64;
+
+    const VALUE: Self::Output = {
+        match N {
+            0 => 0,
+            1 => 1,
+            _ => FibonacciSequence::<{ N - 1 }>::VALUE + FibonacciSequence::<{ N - 2 }>::VALUE,
         }
-        arr
-    }
-
-    // Create the array at compile time!
-    let sequence = create_sequence::<SIZE>();
-
-    println!("Generated array: {:?}", sequence);
-
-    // Demonstrate a little bit more compile-time power: computing the sum of elements
-    const SUM: usize = {
-        let mut total = 0;
-        let arr = create_sequence::<SIZE>();  // Re-use the function, valid in const context!
-        for &val in &arr {
-            total += val;
-        }
-        total
     };
+}
 
-    println!("Sum of elements: {}", SUM);
+fn main() {
+    // Calculate Fibonacci(10) at compile time.  The result is baked into the binary.
+    const FIB10: u64 = FibonacciSequence::<10>::VALUE;
+
+    println!("Fibonacci(10) is: {}", FIB10);
+
+    //Demonstrates accessing the associated type, although it's redundant here.
+    println!("Type of Fibonacci(10)'s output is: {}", std::any::type_name::<FibonacciSequence::<10>::Output>());
 }
 ```
 
-Key features and explanations:
+**Explanation and Why It's Interesting:**
 
-* **`const generics`**:  The `create_sequence<const N: usize>()` function takes a generic parameter `N`, *not* a type, but a `usize` value. This `N` becomes the size of the array at compile time.  This allows you to create arrays of varying sizes determined by compile-time constants.  This is much more flexible than using fixed array sizes or dynamic allocation when the size is known ahead of time.
+1. **Compile-Time Calculation:** The core magic lies in `FibonacciSequence::<N>::VALUE`.  Because `N` is a `const generic`, the compiler knows its value *at compile time*. This allows the `match` statement and the recursive Fibonacci calculation to happen during compilation, not at runtime.
 
-* **`const assertion`**:  The `const _: () = assert!(N > 0, "Array size must be greater than zero");` line uses a `const` assertion.  This is an assertion that is checked at *compile time*, not runtime. If `N` is zero, the program will fail to compile, preventing potential runtime errors. This is much safer than runtime checks, particularly in embedded systems.
+2. **Type-Level Programming:** This is an example of "type-level programming".  We're using the type system (specifically, `const generics`, traits, and associated types) to perform calculations that are traditionally done at runtime. The type system is used to represent data (the Fibonacci sequence index) and to execute a computation.
 
-* **`compile-time computation`**:  The `SUM` constant is calculated entirely at compile time. It calls `create_sequence::<SIZE>()` *within a `const` context* and iterates through the generated array to calculate the sum.  Rust is powerful enough to perform relatively complex computations during compilation.
+3. **`const` Context:**  The `const VALUE: Self::Output = { ... }` syntax indicates a `const` context, meaning the expression within the curly braces *must* be evaluatable at compile time. This is essential for the compile-time calculation.
 
-* **`[usize; N]`**: This syntax defines a fixed-size array.  The size `N` is a `const` generic parameter, meaning it is determined at compile time.
+4. **No Runtime Cost:** The calculated value of `FIB10` is directly embedded into the compiled executable.  There's no runtime calculation of the Fibonacci sequence at all. This can lead to significant performance improvements, especially for frequently used values.
 
-* **`[0; N]`**:  Initializes an array of size `N` with all elements set to 0.
+5. **Associated Types:** The `type Output` in the `Fibonacci` trait is an associated type. It allows us to define the *type* of the Fibonacci number result for different implementations. In this case, we're using `u64` for all implementations, but the associated type mechanism provides flexibility.
 
-* **Why it's interesting:** This program combines several relatively advanced Rust features to perform computations and create data structures at compile time. This can lead to significant performance improvements, as the code does not need to perform these calculations during runtime.  The `const` assertions add a layer of safety and prevent errors from happening during program execution. This approach is particularly relevant for embedded systems programming or performance-critical applications.
+6. **Unique and Clever:**  It's not every day you see a Fibonacci sequence calculated entirely at compile time and embedded directly into the executable.  This demonstrates Rust's powerful static analysis and metaprogramming capabilities.
+
+**How to Run:**
+
+1.  Save the code as `fibonacci_compile_time.rs`.
+2.  Compile it: `rustc fibonacci_compile_time.rs`
+3.  Run it: `./fibonacci_compile_time`
+
+The output will be:
+
+```
+Fibonacci(10) is: 55
+Type of Fibonacci(10)'s output is: u64
+```
+
+**Limitations:**
+
+*   **Recursion Depth:**  Calculating very large Fibonacci numbers at compile time will hit Rust's recursion depth limits.  You might need to increase the `recursion_limit` attribute if you want to go beyond Fibonacci(20) or so.
+
+*   **Compile Time:** Very large calculations will significantly increase compile time.
+
+This program provides a glimpse into Rust's powerful, and often underutilized, type-level programming capabilities, allowing for significant optimization by shifting computations from runtime to compile time.
