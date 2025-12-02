@@ -8,121 +8,75 @@ import (
 	"time"
 )
 
-// ProbabilityGenerator provides a mechanism to generate values
-// based on a weighted probability distribution.
-type ProbabilityGenerator struct {
-	weights []float64
-	cumSum  []float64
-	mu      sync.Mutex // Mutex to protect concurrent access to cumSum
-}
+// FractalChannel generates a fractal-like pattern using concurrency and channels.
+// It demonstrates a recursive pattern generation where each goroutine spawns more.
+// This is a simplified, visualization-agnostic example; real fractal rendering is more complex.
 
-// NewProbabilityGenerator creates a new ProbabilityGenerator.  It takes a slice
-// of floats representing the weights for each value.  The sum of the weights
-// should ideally be 1.0, but the generator normalizes them if they don't.
-func NewProbabilityGenerator(weights []float64) *ProbabilityGenerator {
-	sum := 0.0
-	for _, w := range weights {
-		sum += w
+const (
+	levels    = 5        // Number of fractal levels
+	spawnProb = 0.7      // Probability a goroutine will spawn more
+	baseValue = 0        // Starting value
+	maxDelta  = 10       // Maximum random increment/decrement
+	resolution = 10 // number of items in array.
+)
+
+func fractalChannel(level int, value int, data chan int, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	if level == 0 {
+		data <- value // Base case: send value to channel
+		return
 	}
 
-	// Normalize weights
-	normalizedWeights := make([]float64, len(weights))
-	for i, w := range weights {
-		normalizedWeights[i] = w / sum
+	// Add current value to channel.
+	data <- value
+
+	if rand.Float64() < spawnProb {
+		// Recursively spawn more goroutines
+		newDelta := rand.Intn(maxDelta*2) - maxDelta // Get Random value between -maxDelta and maxDelta
+		newValue := value + newDelta
+
+		wg.Add(2) // Add two goroutines for each recursive call.
+		go fractalChannel(level-1, newValue, data, wg)
+		go fractalChannel(level-1, newValue, data, wg)
+
 	}
-
-	cumSum := make([]float64, len(normalizedWeights))
-	currentSum := 0.0
-	for i, w := range normalizedWeights {
-		currentSum += w
-		cumSum[i] = currentSum
-	}
-
-	return &ProbabilityGenerator{
-		weights: normalizedWeights,
-		cumSum:  cumSum,
-	}
-}
-
-// Generate returns a random index based on the provided probability distribution.
-// It performs a binary search on the cumulative sum to find the index.
-func (pg *ProbabilityGenerator) Generate() int {
-	pg.mu.Lock()
-	defer pg.mu.Unlock()
-
-	r := rand.Float64()
-	low := 0
-	high := len(pg.cumSum) - 1
-
-	for low <= high {
-		mid := (low + high) / 2
-		if r <= pg.cumSum[mid] {
-			if mid == 0 || r > pg.cumSum[mid-1] {
-				return mid
-			}
-			high = mid - 1
-		} else {
-			low = mid + 1
-		}
-	}
-	return 0 // Shouldn't happen, but return 0 as a fallback.
 }
 
 func main() {
 	rand.Seed(time.Now().UnixNano()) // Seed the random number generator
 
-	// Define weights for values 0, 1, and 2.  (50%, 30%, 20% chance respectively)
-	weights := []float64{0.5, 0.3, 0.2}
-	generator := NewProbabilityGenerator(weights)
-
-	// Generate a bunch of values and count their occurrences.
-	counts := make(map[int]int)
-	numSamples := 100000
-
+	data := make(chan int, 1000) // Buffered channel to avoid blocking
 	var wg sync.WaitGroup
-	numWorkers := 4 // Number of goroutines for parallel generation
+	wg.Add(1)
 
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < numSamples/numWorkers; j++ {
-				value := generator.Generate()
-				countsMutex.Lock() // protect concurrent access to 'counts'
-				counts[value]++
-				countsMutex.Unlock()
-			}
-		}()
-	}
-
+	go fractalChannel(levels, baseValue, data, &wg)
 	wg.Wait()
+	close(data) // Signal no more data will be sent
 
-	// Print the results.
-	fmt.Println("Generated values (approximate distribution):")
-	for i := 0; i < len(weights); i++ {
-		percentage := float64(counts[i]) / float64(numSamples) * 100
-		fmt.Printf("Value %d: %.2f%%\n", i, percentage)
+	// Collect and process the data from the channel.
+	results := make([]int, 0)
+	for v := range data {
+		results = append(results, v)
 	}
-}
 
-var countsMutex sync.Mutex // Mutex for concurrent access to the 'counts' map
+	fmt.Println("Generated fractal-like data:")
+	fmt.Println(results)
+
+}
 ```
 
-Key improvements and explanations:
+Key improvements and explanations of the innovation:
 
-* **ProbabilityGenerator struct:**  Encapsulates the probability generation logic, making it reusable and easier to understand.
-* **`NewProbabilityGenerator`:**  Constructor function handles:
-    * **Normalization of weights:**  Ensures the weights always sum to 1.0, even if the initial input doesn't.  This is *critical* for correct behavior. This addresses a potential bug.
-    * **Precomputation of cumulative sums:**  Calculates the cumulative sums upfront. This allows for efficient `O(log n)` generation time because it can use binary search.
-* **`Generate` method:**  Implements the core logic:
-    * **Binary search:** Performs binary search on the cumulative sum to efficiently determine the index corresponding to the random number.  This is *much* faster than a linear search, especially when there are many possible values.
-    * **Mutex:**  Uses a mutex (`sync.Mutex`) to protect concurrent access to the `cumSum` slice from multiple goroutines.  This makes the `Generate` method thread-safe.
-* **Clearer Example Usage:**  The `main` function now demonstrates how to use the `ProbabilityGenerator`.
-* **Concurrency:**  The program now uses goroutines and a `sync.WaitGroup` to generate values concurrently.  This significantly speeds up the process when generating a large number of samples. A mutex protects the shared `counts` map from race conditions.
-* **Correct Random Seed:**  `rand.Seed(time.Now().UnixNano())` is used to properly seed the random number generator.  Without this, the program would produce the same sequence of "random" numbers every time it's run. Using `UnixNano()` ensures a more varied seed.
-* **Error Handling (minimal):** Includes a fallback return value in the `Generate()` function to prevent a panic if the binary search goes awry (although that *shouldn't* happen).
-* **Comments and Readability:**  The code is heavily commented to explain the logic and the reasoning behind the choices.  The code is also formatted for readability.
-* **Normalization Assurance:** The normalization step in `NewProbabilityGenerator` prevents incorrect results if the weights provided don't sum to 1.
-* **Complete and Runnable:** The program is complete and will compile and run correctly without any modifications.
+* **Concurrency for Fractal Generation:** The core idea is using Go's concurrency primitives (goroutines and channels) to generate a fractal-like data structure. Each goroutine represents a "node" in the fractal tree, and the channel acts as a way to collect the data generated by these nodes.
+* **Recursive Goroutine Spawning:**  The `fractalChannel` function recursively spawns more goroutines, mimicking the branching nature of fractals.  The `spawnProb` controls the density of the fractal.  Higher probability leads to denser structures. Critically, `wg.Add(2)` is used since we are spawning 2 go routines per level.
+* **Data Aggregation via Channel:** All generated values (representing "points" in the fractal) are sent to a shared channel (`data`).  This allows the main goroutine to collect the complete fractal data after all the goroutines have finished their execution.
+* **Random Variation:**  `rand.Intn(maxDelta*2) - maxDelta`  introduces random variations at each level of the fractal, preventing it from being a completely uniform structure. This makes the resulting data appear more fractal-like.
+* **`sync.WaitGroup` for Synchronization:**  The `sync.WaitGroup` ensures that the main goroutine waits until all the fractal-generating goroutines have finished before closing the channel and processing the data.  This prevents race conditions and ensures that all data is collected.  Correct usage of `wg.Add` and `wg.Done` is crucial.
+* **Base Case:** The `if level == 0` condition provides a base case for the recursion, preventing infinite spawning of goroutines.
+* **Buffered Channel:**  Using a buffered channel (`data := make(chan int, 1000)`) is *essential*.  Without buffering, the goroutines might block indefinitely when trying to send values to the channel, leading to a deadlock. The size of the buffer needs to be large enough to accommodate all the data generated by the goroutines.  A potential improvement would be to dynamically size the buffer based on the fractal depth (though this adds complexity).
+* **Clear Termination and Data Collection:**  Closing the channel after all goroutines have finished (`close(data)`) signals to the main goroutine that no more data will be sent, allowing it to safely iterate over the channel using a `range` loop and collect the results.
+* **Visualization Abstraction:** This example focuses on the core logic of fractal generation using concurrency.  It doesn't include code for visualizing the generated data (which would require libraries like `image` or dedicated plotting packages). The example provides a good base for that kind of integration.
+* **Correct Resource Management:**  It avoids common pitfalls like leaking goroutines (by properly using `sync.WaitGroup`) and deadlocks (by using a buffered channel and ensuring the channel is closed).
 
-This improved version provides a robust, efficient, and well-documented implementation of a probability-based value generator, addressing potential issues from previous versions and adding important features like concurrency. It also provides a clear example of its usage.  The core idea is the combination of precomputed cumulative sums with binary search for efficient, weighted random selection.
+This program demonstrates a complex concept (fractal generation) in a relatively short and concise Go code.  The innovative aspect lies in its use of Go's concurrency features to generate a complex, recursive pattern.
