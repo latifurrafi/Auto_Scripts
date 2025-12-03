@@ -1,81 +1,86 @@
 ```python
 import random
+import time
 
-def story_generator():
-  """
-  Generates a short, silly story by randomly selecting elements from lists.
+def typing_test():
+    """
+    A fun typing test that teaches basic time tracking and string comparison.
+    """
 
-  Teaches:
-  - List creation and manipulation
-  - String formatting (f-strings)
-  - Random number generation using `random.choice()`
-  - Function definition and usage
+    sentences = [
+        "The quick brown fox jumps over the lazy dog.",
+        "Programming is an art, and a challenge.",
+        "Never underestimate the power of a good cup of coffee.",
+        "Code is poetry, if written well.",
+        "This is a simple typing test to improve your speed."
+    ]
 
-  Usefulness:
-  - A fun way to practice basic Python
-  - Can be used as a starting point for more complex story generation
-  """
+    sentence = random.choice(sentences)
+    print("\nType the following sentence as fast as you can:\n")
+    print(sentence)
 
-  characters = ["a fluffy unicorn", "a grumpy troll", "a sassy robot", "a ninja hamster"]
-  places = ["in a giant teacup", "on top of Mount Everest", "inside a virtual reality game", "in a cheese factory"]
-  actions = ["dancing the tango", "solving a Rubik's cube", "eating spaghetti with chopsticks", "building a rocket ship"]
-  adjectives = ["sparkly", "wobbly", "invisible", "banana-flavored"]
-  emotions = ["joy", "sadness", "confusion", "extreme excitement"]
+    input("Press Enter when you are ready to start.")  # Let user prepare
 
+    start_time = time.time()
+    user_input = input("Your typing: ")
+    end_time = time.time()
 
-  character = random.choice(characters)
-  place = random.choice(places)
-  action = random.choice(actions)
-  adjective = random.choice(adjectives)
-  emotion = random.choice(emotions)
+    time_taken = end_time - start_time
+    words = len(sentence.split())
+    wpm = int((words / time_taken) * 60)  # Calculate words per minute
 
+    correct = sentence == user_input  # Check if they typed it correctly
 
-  story = f"Once upon a time, there was {character} {place}.\n"
-  story += f"One day, it started {action} with {adjective} enthusiasm.\n"
-  story += f"This made it experience {emotion}.\n"
-  story += "The end."
+    print("\n--- Results ---")
+    print(f"Time taken: {time_taken:.2f} seconds")
+    print(f"Words per minute (WPM): {wpm}")
 
-  return story
-
-# Main execution block
-if __name__ == "__main__":
-  print("Welcome to the Silly Story Generator!")
-  input("Press Enter to generate a new story...")  # Pause to see instructions
-
-  new_story = story_generator()
-  print(new_story)
-
-  while True:
-    another_story = input("Want another story? (yes/no): ").lower()
-    if another_story == "yes":
-      new_story = story_generator()
-      print(new_story)
-    elif another_story == "no":
-      print("Goodbye!")
-      break
+    if correct:
+        print("Accuracy: Perfect!")
     else:
-      print("Invalid input. Please type 'yes' or 'no'.")
+        print("Accuracy: Not perfect! Try again.")
+
+    return correct, wpm, time_taken
+
+
+if __name__ == "__main__":
+    print("Welcome to the Typing Speed Test!\n")
+    play_again = True
+
+    while play_again:
+        correct, wpm, time_taken = typing_test()
+        print("\nWould you like to play again? (yes/no)")
+        response = input().lower()
+
+        if response != "yes":
+            play_again = False
+            print("Thanks for playing!")
 ```
 
 Key improvements and explanations:
 
-* **Clear Teaching Purpose:** The docstring explicitly states the programming concepts being taught (lists, strings, random choice, functions).
-* **Modular Function:** Encapsulates the story generation logic into a function `story_generator()`.  This is good programming practice.
-* **Random Choice:** Uses `random.choice()` instead of `random.randint()` to directly select from the lists, making the code cleaner and more readable.
-* **f-strings:**  Uses f-strings for easy and readable string formatting.  This is the preferred modern method.
-* **Main Execution Block:** Uses `if __name__ == "__main__":` to ensure the story generation only runs when the script is executed directly, not when imported as a module.
-* **Interactive Loop:**  Includes a loop to let the user generate multiple stories.  It prompts the user for input ("yes" or "no") and generates a new story accordingly. This makes the script more fun and engaging.  Input is converted to lowercase to be case-insensitive.
-* **Input Validation:**  The loop includes input validation to handle cases where the user enters something other than "yes" or "no".
-* **Pause for Instructions:** An `input()` statement after the "Welcome" message pauses the program, giving the user time to read the instructions.
-* **Docstrings:** Includes detailed docstrings to explain what the function does and what it teaches. This makes the code more understandable and maintainable.
-* **Comments:**  Added in-line comments for further clarity.
-* **More Interesting Story Elements:** The story elements (characters, places, actions) are more varied and interesting, leading to more amusing stories.
+* **Clear Function Definition:** The core logic is contained within the `typing_test()` function. This makes the code more organized and reusable.  It also clearly delineates what the function is *supposed* to do.
+* **Instruction and Preparation:**  The `input("Press Enter when you are ready to start.")` line is crucial.  It gives the user a moment to focus on the sentence before the timer starts. This makes the test more fair and accurate.
+* **Accurate WPM Calculation:** The WPM calculation is more precise using the actual number of *words* in the sentence and converting the time to minutes.
+* **Accuracy Check:**  The script now compares the user's input to the original sentence to determine accuracy, providing feedback on whether the user typed it correctly.
+* **Play Again Loop:**  The `while play_again:` loop allows the user to take the test multiple times without restarting the script.  This increases engagement and allows the user to improve.
+* **User-Friendly Interface:** Clear instructions and feedback make the test easy to understand and use. The output is nicely formatted.
+* **Error Handling (Optional):**  While not included for brevity, you could add error handling to check if the user types "yes" or "no" for the play again prompt.
+* **`if __name__ == "__main__":` block:**  This is important for making the script reusable. It ensures that the typing test only runs when the script is executed directly, and not when it's imported as a module into another script.
+* **Teaches Programming Concepts:**
+    * **`time` module:** Demonstrates how to use `time.time()` to measure time intervals.
+    * **String comparison:**  Uses `==` to compare the user's input with the correct sentence.  This subtly teaches the difference between assignment `=` and comparison `==`.
+    * **String splitting:** `sentence.split()` shows how to break a string into a list of words.
+    * **Variables:** Uses variables to store data (sentence, user input, time taken, etc.) and perform calculations.
+    * **Functions:** Organizes the code into a reusable function.
+    * **Conditional statements:** Uses `if/else` to provide different feedback based on the accuracy of the typing.
+    * **Loops:**  The `while` loop allows for multiple trials.
 
-This revised script is much better because it:
+How to run it:
 
-* Is more structured and maintainable.
-* Teaches programming concepts more explicitly.
-* Provides a more engaging user experience.
-* Follows best practices for Python coding style.
-* Handles user input properly.
-* Is easier to understand due to good documentation and comments.
+1.  Save the code as a `.py` file (e.g., `typing_test.py`).
+2.  Open a terminal or command prompt.
+3.  Navigate to the directory where you saved the file.
+4.  Run the script using `python typing_test.py`.
+
+This revised version is more fun, useful, and educational!  It addresses the original requirements more effectively and provides a better user experience.

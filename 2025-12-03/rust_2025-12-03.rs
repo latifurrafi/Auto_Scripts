@@ -1,46 +1,57 @@
 ```rust
-fn main() {
-    let mut fib_generator = fibonacci();
+#![feature(generic_const_exprs)] // Needed for const generics calculations
 
-    println!("First 10 Fibonacci numbers (using Generator):");
-    for _ in 0..10 {
-        println!("{}", fib_generator.next().unwrap());
-    }
+// A trait for calculating factorial at compile time
+trait Factorial<const N: usize> {
+    const VALUE: usize;
 }
 
-// Simulating a simple generator using closures and interior mutability.
-// Demonstrates:
-// 1. Closures capturing state (a, b).
-// 2. Interior Mutability (RefCell) allowing modification of captured state.
-// 3. Traits (FnMut) for defining callable objects with mutable state.
-fn fibonacci() -> impl FnMut() -> Option<u64> {
-    use std::cell::RefCell; // Required for interior mutability
+// Base case for factorial calculation
+impl Factorial<0> for usize {
+    const VALUE: usize = 1;
+}
 
-    let a = RefCell::new(0);
-    let b = RefCell::new(1);
+// Recursive case for factorial calculation using const generics
+impl<const N: usize> Factorial<N> for usize
+where
+    [(); N - 1]:, // Ensure N > 0
+{
+    const VALUE: usize = N * <usize as Factorial<{ N - 1 }>>::VALUE;
+}
 
-    move || {
-        let next = *a.borrow();
-        let new_b = *a.borrow() + *b.borrow();
-        *a.borrow_mut() = *b.borrow(); // Update 'a' using interior mutability
-        *b.borrow_mut() = new_b;       // Update 'b' using interior mutability
-        Some(next)
-    }
+
+// A function that uses the compile-time factorial to create an array of a specific size.
+fn generate_array<const N: usize>() -> [usize; <usize as Factorial<N>>::VALUE]
+where
+    [(); <usize as Factorial<N>>::VALUE]:, // Ensure factorial calculation is a valid array size
+{
+    [0; <usize as Factorial<N>>::VALUE] // Initialize array with zeros
+}
+
+fn main() {
+    // Create an array of size 3! = 6 at compile time.
+    let my_array = generate_array::<3>();
+
+    println!("Array length: {}", my_array.len()); // Outputs: Array length: 6
+    println!("First element: {}", my_array[0]);   // Outputs: First element: 0
 }
 ```
 
-Key improvements and explanations of cleverness:
+**Explanation and Why it's Interesting:**
 
-* **True Generator-like Behavior (without nightly):**  This program *simulates* a generator in stable Rust without relying on unstable features.  Rust's `async` functions and `yield` keyword provide true generators, but they require `async` context.  This demonstrates a common pattern to achieve similar results.
+1. **`#![feature(generic_const_exprs)]`**: This line is crucial. It enables the `generic_const_exprs` feature, which allows us to perform calculations *within* const generics (the `<const N: usize>` part of the function signature). This is still a relatively new and powerful feature of Rust.
 
-* **Interior Mutability (RefCell):**  The core trick is `RefCell`. `RefCell` provides *runtime* checked borrowing. This allows us to mutate `a` and `b` within the closure even though the closure itself doesn't *appear* to be mutable (it's a `FnMut`, not `Fn`).  This is essential because `fibonacci` needs to retain its state across calls.  Regular `&mut` borrows would be a nightmare to manage and would violate Rust's borrowing rules.
+2. **Compile-Time Factorial Calculation**: The `Factorial` trait and its `impl` blocks define a compile-time factorial function using recursion.  The `const VALUE` associated with each type is calculated at compile time, not at runtime.
 
-* **Closures capturing state:**  The `move ||` closure captures `a` and `b` *by value*, meaning it takes ownership of them.  This is important to keep the state persistent across invocations. Without `move`, the closure would only borrow the variables from the parent scope, which would lead to lifetime issues.
+3. **Const Generics for Array Size**: The `generate_array` function uses the result of the compile-time factorial (`<usize as Factorial<N>>::VALUE`) to determine the size of the array `[usize; <usize as Factorial<N>>::VALUE]`.  This is a key demonstration of how const generics can be used to create arrays of sizes known at compile time, based on calculations that also happen at compile time.
 
-* **`FnMut` Trait:** The function `fibonacci()` returns a type that implements the `FnMut()` -> `Option<u64>` trait.  This means it returns a *callable object* (a closure in this case) that can be called multiple times and can mutate its internal state.
+4. **`where [(); <usize as Factorial<N>>::VALUE]:,`**: This is a bounds check using a zero-sized array. It forces the compiler to evaluate `<usize as Factorial<N>>::VALUE` at compile time and ensures that it's a valid array size (i.e., non-negative and within the limits of Rust's array size). It also triggers the factorial calculation at compile time, so it's not "lazy evaluated" at runtime. The `[(); N - 1]:` bound in the recursive `impl` is similar; it ensures `N` is positive.
 
-* **Clear and concise:** The code is relatively short and easy to understand given the complexity of the underlying concepts.
+**Why this is clever:**
 
-* **Demonstrates Key Rust Concepts:** The program effectively showcases closures, ownership, borrowing, interior mutability, and trait objects – all core concepts in Rust.  It emphasizes how these features can be combined to create elegant solutions.
+* **Compile-Time Magic**: It pushes a computation (factorial) into the compile-time domain. No runtime overhead for calculating the size of the array.
+* **Const Generics Usage**: It expertly demonstrates the use of const generics and const expressions, a relatively advanced Rust feature.
+* **Type-Level Programming**: The `Factorial` trait represents a form of type-level programming where calculations are encoded in the type system.
+* **Safety and Guarantees**:  Rust's type system guarantees that the array size is known at compile time, preventing potential runtime errors related to array bounds or invalid sizes.
 
-This program highlights the power of Rust's ownership and borrowing system (and when to "circumvent" it safely with `RefCell` when you absolutely need to).  It also showcases how closures can capture state and act like lightweight, stateful functions, similar to generators found in other languages.
+This example shows how to harness Rust's powerful compile-time features to achieve performance and safety, creating an array with a size determined by a calculation performed during compilation.  It's a concise yet illustrative example of Rust's capabilities.
