@@ -1,64 +1,55 @@
 ```rust
 fn main() {
-    // We're going to build a little compile-time "FizzBuzz" generator!
+    // Let's use const generics to create arrays of different sizes at compile time.
 
-    // Define a trait to add a 'fizzbuzz' method to integers
-    trait FizzBuzz {
-        fn fizzbuzz(&self) -> String;
-    }
-
-    // Implement the FizzBuzz trait for integers at compile time
-    impl<const N: i32> FizzBuzz for Const<N> {
-        fn fizzbuzz(&self) -> String {
-            match (N % 3 == 0, N % 5 == 0) {
-                (true, true) => "FizzBuzz".to_string(),
-                (true, false) => "Fizz".to_string(),
-                (false, true) => "Buzz".to_string(),
-                (false, false) => N.to_string(),
-            }
+    const fn fibonacci<const N: usize>() -> [usize; N] {
+        let mut result = [0; N];
+        if N > 0 {
+            result[0] = 1;
         }
+        if N > 1 {
+            result[1] = 1;
+        }
+        for i in 2..N {
+            result[i] = result[i - 1] + result[i - 2];
+        }
+        result
     }
 
-    // A marker struct to enforce constant evaluation.
-    struct Const<const N: i32>;
+    // Define a macro to neatly print the Fibonacci sequence.
+    macro_rules! print_fib {
+        ($size:literal) => {
+            {
+                let fib_seq = fibonacci::<$size>();
+                println!("Fibonacci sequence of length {}: {:?}", $size, fib_seq);
+            }
+        };
+    }
 
-    // Now, we can use the 'fizzbuzz' method with const generics!
-    const ONE: &str = Const::<1>.fizzbuzz().as_str();
-    const THREE: &str = Const::<3>.fizzbuzz().as_str();
-    const FIVE: &str = Const::<5>.fizzbuzz().as_str();
-    const FIFTEEN: &str = Const::<15>.fizzbuzz().as_str();
-
-    println!("1: {}", ONE);      // 1: 1
-    println!("3: {}", THREE);    // 3: Fizz
-    println!("5: {}", FIVE);     // 5: Buzz
-    println!("15: {}", FIFTEEN);  // 15: FizzBuzz
-
-    // Try uncommenting this line:
-    // let some_runtime_number = 7;
-    // println!("{}", some_runtime_number.fizzbuzz());  // Compile error: FizzBuzz trait only implemented for Const<N>
-
-    // We've generated FizzBuzz strings at compile time using const generics!
+    //  Call the macro to print different lengths of the sequence.
+    print_fib!(5);
+    print_fib!(10);
+    print_fib!(15);
 }
 ```
 
 **Explanation:**
 
-1. **Const Generics and Compile-Time Evaluation:** The core idea is to use Rust's `const generics` to perform FizzBuzz logic at compile time. We define a marker struct `Const<const N: i32>` that *only* exists to hold a constant integer value.  This forces the `FizzBuzz` implementation (below) to be evaluated at compile time.
+1. **`const fn fibonacci<const N: usize>()`:**  This defines a `const fn` (constant function) that calculates the Fibonacci sequence. The key here is `const N: usize`, which is a *const generic*.  This means `N` is a generic type parameter, but its *value* is known at compile time. This allows us to create arrays of different sizes based on the compile-time constant `N`.  `const fn` means the function can be evaluated at compile time if its arguments are known at compile time, allowing for zero-cost abstractions.
 
-2. **The `FizzBuzz` Trait:**  We define a trait `FizzBuzz` with a `fizzbuzz()` method. This allows us to attach a custom behavior to integers.
+2. **`[usize; N]`:** Inside the function, we declare an array `result` of type `[usize; N]`.  Because `N` is a const generic, the size of the array is determined at compile time.
 
-3. **Compile-Time Implementation:** The crucial part is the `impl<const N: i32> FizzBuzz for Const<N> { ... }`. This implements the `FizzBuzz` trait *specifically* for the `Const<N>` struct, where `N` is a `const` generic parameter (an integer known at compile time).  Inside the `fizzbuzz()` implementation, we use `N % 3 == 0` and `N % 5 == 0` to perform the FizzBuzz logic. Because `N` is a `const`, these calculations are performed during compilation.
+3. **Fibonacci Calculation:** The function then calculates the Fibonacci sequence and stores it in the `result` array.
 
-4. **String Conversion:** The `to_string()` and `as_str()` calls are necessary because string literals (`"Fizz"`, `"Buzz"`, etc.) are of type `&'static str`, and to print them you need to convert the String back into a `&str`.
+4. **`macro_rules! print_fib`:** This is a macro that takes a literal integer as input (representing the size of the Fibonacci sequence we want to print). It uses the `fibonacci` function (with the given size) to generate the sequence and then prints it in a user-friendly format.
 
-5. **Compile-Time Initialization:** We create `const` variables like `ONE`, `THREE`, `FIVE`, and `FIFTEEN` and assign them the results of the `fizzbuzz()` method called on `Const<N>` instances.  This is where the magic happens: the `FizzBuzz` logic is executed during compilation, and the resulting strings are stored in the compiled binary as constants.
+5. **Macro Calls:**  The `print_fib!` macro is called with different sizes (5, 10, and 15). This demonstrates that the `fibonacci` function is being instantiated with different compile-time constant values for `N`, resulting in arrays of different sizes being created and populated.
 
-6. **Type Safety and Error Handling:** If you try to call `fizzbuzz()` on a runtime integer (as shown in the commented-out code), you'll get a compile-time error. This demonstrates Rust's strong type system and its ability to enforce constraints at compile time.  The `FizzBuzz` trait is *only* implemented for `Const<N>`, ensuring that the FizzBuzz logic can only be applied to compile-time constants.
+**Why this is interesting:**
 
-**Why is this interesting?**
+* **Compile-Time Computation:**  The Fibonacci sequence is calculated at compile time thanks to `const fn`. This leads to faster runtime execution, as the results are precomputed.
+* **Const Generics for Static Sizes:**  Const generics are a powerful feature that allows you to parameterize types and functions by constant values.  This is especially useful for creating statically-sized data structures like arrays.
+* **Zero-Cost Abstraction:**  The combination of `const fn` and const generics allows for zero-cost abstractions. We can write generic code that performs calculations at compile time, without incurring any runtime overhead.
+* **Conciseness:** The macro helps make the code more readable and easier to use, demonstrating a neat abstraction layer on top of the core functionality.
 
-* **Compile-Time Performance:**  The FizzBuzz calculations are done during compilation, resulting in slightly faster runtime performance (though the difference is negligible for this example, it's a good illustration of the principle).
-* **Type Safety and Guarantees:** The type system guarantees that the FizzBuzz logic is only applied to compile-time constants, preventing potential runtime errors.
-* **Const Generics Showcase:**  It demonstrates how `const generics` can be used to perform computations and generate data during compilation, opening up possibilities for more advanced compile-time programming.  You can use this to generate complex data structures, tables, or even specialized algorithms at compile time.
-
-This program is a concise example of how Rust's features, like `const generics` and traits, can be combined to achieve powerful compile-time behavior.
+This example highlights a modern and powerful feature of Rust, demonstrating how it allows for efficient, type-safe, and expressive code.  The use of compile-time computation and const generics is a prime example of Rust's commitment to performance and zero-cost abstractions.
