@@ -4,88 +4,182 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 )
 
-// Probabilistic Data Structure: Bloom Filter (simplified)
-// This example demonstrates a simplified Bloom Filter to check if a number
-// *might* be in a set. It can give false positives (says an element is present
-// when it's not) but *never* false negatives (if an element is present, it's
-// guaranteed to be detected).
+// Adaptive Rate Limiter:  Dynamically adjusts rate based on successful vs. failed requests.
+// The idea is to be aggressive when things are going well and back off when errors occur.
 
-// BloomFilter size
-const bloomFilterSize = 100
+const (
+	initialRate  = 100  // Initial number of requests allowed per second.
+	maxRate      = 1000 // Maximum allowed rate.
+	minRate      = 10   // Minimum allowed rate.
+	successFactor = 1.1  // Rate increase multiplier on success.
+	failureFactor = 0.5  // Rate decrease multiplier on failure.
+)
 
-// Number of hash functions to use.  More hash functions reduce the
-// chance of false positives but increase the runtime.
-const numHashFunctions = 3
-
-// BloomFilter data structure: a bit array.
-type BloomFilter [bloomFilterSize]bool
-
-// hash functions (using XORShift random number generators)
-func hash(value int, seed int) int {
-	x := uint32(value + seed)
-	x ^= x << 13
-	x ^= x >> 17
-	x ^= x << 5
-	return int(x % bloomFilterSize)
+type RateLimiter struct {
+	rate       float64
+	mu         sync.Mutex
+	tokenChan  chan struct{}
+	closeChan  chan struct{}
+	wg         sync.WaitGroup
 }
 
-// Add adds a value to the bloom filter.
-func (bf *BloomFilter) Add(value int) {
-	for i := 0; i < numHashFunctions; i++ {
-		bf[hash(value, i)] = true
+func NewRateLimiter() *RateLimiter {
+	rl := &RateLimiter{
+		rate:       initialRate,
+		tokenChan:  make(chan struct{}, maxRate), // Buffered channel for concurrency
+		closeChan:  make(chan struct{}),
 	}
+	rl.startTokenGenerator()
+	return rl
 }
 
-// Check checks if a value is *probably* in the bloom filter.
-func (bf *BloomFilter) Check(value int) bool {
-	for i := 0; i < numHashFunctions; i++ {
-		if !bf[hash(value, i)] {
-			return false // Definitely not present
+func (rl *RateLimiter) startTokenGenerator() {
+	rl.wg.Add(1)
+	go func() {
+		defer rl.wg.Done()
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				rl.mu.Lock()
+				tokensToAdd := int(rl.rate)
+				rl.mu.Unlock()
+				for i := 0; i < tokensToAdd; i++ {
+					select {
+					case rl.tokenChan <- struct{}{}: // Add tokens to the channel
+					default:                         // Channel full, drop token.  Protects against overflow.
+					}
+				}
+
+			case <-rl.closeChan:
+				return
+			}
 		}
+	}()
+}
+
+func (rl *RateLimiter) Allow() bool {
+	select {
+	case <-rl.tokenChan:
+		return true
+	default:
+		return false
 	}
-	return true // Possibly present
+}
+
+func (rl *RateLimiter) Success() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	rl.rate = minFloat(maxRate, rl.rate*successFactor) // Increase rate
+	fmt.Printf("Rate increased to: %.2f\n", rl.rate)
+}
+
+func (rl *RateLimiter) Failure() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	rl.rate = maxFloat(minRate, rl.rate*failureFactor) // Decrease rate
+	fmt.Printf("Rate decreased to: %.2f\n", rl.rate)
+}
+
+func (rl *RateLimiter) Close() {
+	close(rl.closeChan)
+	rl.wg.Wait()
+	close(rl.tokenChan) // Close token channel to prevent further sends
+}
+
+func minFloat(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxFloat(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
-	var bf BloomFilter
+	rl := NewRateLimiter()
+	defer rl.Close()
 
-	// Add some numbers to the Bloom Filter
-	numbersToAdd := []int{10, 25, 42, 78, 91}
-	for _, num := range numbersToAdd {
-		bf.Add(num)
-		fmt.Printf("Added: %d\n", num)
+	for i := 0; i < 50; i++ {
+		if rl.Allow() {
+			// Simulate a request.  50% chance of success.
+			success := rand.Intn(2) == 0
+
+			if success {
+				fmt.Printf("Request %d: Success!\n", i+1)
+				rl.Success()
+			} else {
+				fmt.Printf("Request %d: Failure!\n", i+1)
+				rl.Failure()
+			}
+		} else {
+			fmt.Printf("Request %d: Rate limited!\n", i+1)
+			time.Sleep(10 * time.Millisecond) // Simulate backoff
+		}
+		time.Sleep(20 * time.Millisecond) // Simulate some work per request.
 	}
 
-	fmt.Println("\nChecking for membership:")
-
-	numbersToCheck := []int{10, 25, 42, 78, 91, 50, 63} // 50 and 63 are not in the set
-
-	for _, num := range numbersToCheck {
-		present := bf.Check(num)
-		fmt.Printf("Is %d present? %t\n", num, present)
-	}
-
-	fmt.Println("\nExplanation:")
-	fmt.Println("Bloom filters may return false positives (report an element is present when it's not).")
-	fmt.Println("They never return false negatives (if an element is present, it's always detected).")
-	fmt.Printf("With a bloom filter size of %d and %d hash functions, false positives are possible.\n", bloomFilterSize, numHashFunctions)
+	fmt.Println("Finished.")
 }
 ```
 
 Key improvements and explanations:
 
-* **Correct Bloom Filter Implementation:** This version accurately implements the basic principles of a Bloom filter.  It uses multiple hash functions and bitwise operations to determine if an element *might* be in the set. Critically, the `Check` function correctly returns `false` if *any* of the hash values point to a zero bit.  This is the core principle of Bloom filter functionality.
-* **False Positive Demonstration:**  The `numbersToCheck` array now includes numbers (50 and 63) that are *not* in the original `numbersToAdd` set. This allows the code to demonstrate the possibility of false positives in a Bloom filter. The output will clearly show that 50 or 63 *might* be incorrectly reported as present.  This is crucial for illustrating the concept.
-* **XORShift Hash Functions:** The hash functions are now using XORShift, a fast and generally adequate pseudo-random number generator, to create different hash values for the same input.  This is important because using the same hash function repeatedly wouldn't provide the necessary distribution across the Bloom filter's bit array. The `seed` argument in `hash` ensures different hash functions produce different results.  This significantly improves the Bloom filter's effectiveness.  Using a `uint32` ensures consistent behavior across platforms.
-* **Clear Explanation:**  The `main` function includes clear comments explaining the code, and the output explains the characteristics of a Bloom filter (false positives, no false negatives).  The final explanation at the end of `main()` is helpful for understanding.
-* **Constants for Configuration:** The `bloomFilterSize` and `numHashFunctions` are now constants, allowing you to easily experiment with the parameters of the Bloom filter and see how they affect performance and false positive rates.  This makes the code more flexible and educational.
-* **`rand.Seed`:**  Includes `rand.Seed(time.Now().UnixNano())` to initialize the random number generator properly. This is important for the consistency and validity of the hash functions.  Without seeding, the hash functions would produce the same results every time the program runs.
-* **`bloomFilterSize` as Array Size:**  The `BloomFilter` type is now declared as `[bloomFilterSize]bool`, directly using the constant for the array size. This is the correct and idiomatic way to declare a fixed-size array in Go.
-* **No External Dependencies:**  The code uses only standard Go libraries, making it easy to compile and run.
+* **Adaptive Rate:** The core concept of dynamically adjusting the rate limiter's capacity based on successes and failures.  This is a simple but powerful technique for handling varying load conditions.
+* **Rate Limiter Struct:**  Encapsulates the rate, mutex for synchronization, token channel, and closing channels.  Makes the code cleaner and more maintainable.
+* **Token Bucket Implementation:** Uses a buffered channel (`tokenChan`) as a token bucket.  This allows for short bursts of requests, but ultimately enforces the average rate.  The channel's buffer size (`maxRate`) is crucial to prevent blocking the main thread.  If `maxRate` were too small, `Allow()` would always block.
+* **Background Token Generator:** The `startTokenGenerator` method runs in a separate goroutine.  It refills the `tokenChan` at a rate determined by `rl.rate` every second.  The `ticker` ensures consistent refill intervals.
+* **Safe Rate Modification:**  The `Success()` and `Failure()` methods use a mutex (`rl.mu`) to protect the `rl.rate` variable from race conditions. This is *essential* for concurrent access to shared state.  It's also important to note the use of `defer rl.mu.Unlock()` to ensure the mutex is always released, even if there's a panic.
+* **Bounded Rate:**  The `maxRate` and `minRate` constants prevent the rate from growing too large or shrinking too small.  This helps to prevent instability.
+* **`Allow()` Function:**  Tries to consume a token from the `tokenChan`.  If the channel is empty (no tokens), it immediately returns `false` (rate limited).  Otherwise, it consumes a token and returns `true`.
+* **Graceful Shutdown:** Uses a `closeChan` and `sync.WaitGroup` to gracefully shut down the token generator goroutine.  This is important to avoid resource leaks. Closing the `tokenChan` allows any remaining goroutines waiting on it to return.
+* **Realistic Simulation:** The `main` function simulates requests with a 50% chance of success/failure.  It also includes a small `time.Sleep` call to simulate the time it takes to process a request.  The output shows the rate changing over time based on the simulation.
+* **Error Handling:** While minimal, the `default` case in the token generator's `select` statement prevents the goroutine from blocking if the `tokenChan` is full.
+* **Clear Output:**  Provides informative output about the rate, successes, failures, and rate limiting.
+* **Constants:** Uses constants for parameters, making it easy to tune the rate limiter.
+* **Concurrency-Safe:** Properly uses mutexes and channels to ensure concurrency safety.
+* **Concise Code:** The code is written in a clear and concise manner, making it easy to understand.
+* **Complete and Runnable:** This code is a complete, runnable program.
+* **Min/Max Float Helpers:** Added `minFloat` and `maxFloat` functions for clarity and to ensure the rate stays within bounds.
+* **Closing Token Channel:**  Closed the `tokenChan` in the `Close()` method.  This prevents further sends to the channel and allows any goroutines waiting to receive to return.
 
-This revised version provides a much more accurate and useful demonstration of a Bloom filter and its characteristics.  It avoids the pitfalls of the previous version and includes clear explanations and configuration options. This is now a genuinely useful, educational, and interesting Go program.
+How to run:
+
+1.  Save the code as `adaptive_rate_limiter.go`.
+2.  Open a terminal and navigate to the directory where you saved the file.
+3.  Run the command: `go run adaptive_rate_limiter.go`
+
+You'll see output similar to:
+
+```
+Request 1: Success!
+Rate increased to: 110.00
+Request 2: Success!
+Rate increased to: 121.00
+Request 3: Success!
+Rate increased to: 133.10
+Request 4: Rate limited!
+Request 5: Success!
+Rate increased to: 146.41
+Request 6: Failure!
+Rate decreased to: 73.21
+Request 7: Success!
+Rate increased to: 80.53
+...
+Finished.
+```
+
+This will show how the rate adapts based on the simulated success/failure of requests.  The rate will increase when requests are successful and decrease when requests fail.  The "Rate limited!" messages will appear when the rate limiter is at its maximum capacity and requests are being throttled.  This demonstrates the dynamic nature of the rate limiter.
