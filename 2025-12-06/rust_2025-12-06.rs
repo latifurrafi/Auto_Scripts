@@ -1,62 +1,97 @@
 ```rust
-// Demonstrates compile-time string manipulation using const generics and `const fn`.
+// A program that utilizes Rust's 'PhantomData' to enforce compile-time constraints
+// on a generic type representing a "Session" and its potential transitions.
 
-const fn reverse_string<const N: usize>(s: &str) -> [u8; N] {
-    assert_eq!(s.len(), N, "String length does not match const generic.");
+use std::marker::PhantomData;
 
-    let mut reversed: [u8; N] = [0; N];
-    let bytes = s.as_bytes();
+// A type representing a state in a "Session" (e.g., Initialized, Authenticated, Closed).
+trait SessionState {}
 
-    let mut i = 0;
-    while i < N {
-        reversed[N - 1 - i] = bytes[i];
-        i += 1;
+// Marker types for our Session states.
+struct Initialized;
+impl SessionState for Initialized {}
+
+struct Authenticated;
+impl SessionState for Authenticated {}
+
+struct Closed;
+impl SessionState for Closed {}
+
+
+// The "Session" struct. 'S' is a type parameter representing the *current* state.
+struct Session<S: SessionState> {
+    // We don't *hold* any data related to the state, but we *track* it at compile time.
+    // PhantomData helps us pretend we own a value of type 'S' without actually owning one.
+    // This makes the compiler understand the session's current state.
+    _phantom: PhantomData<S>,
+}
+
+impl Session<Initialized> {
+    // Transition to Authenticated state.
+    fn authenticate(self, password: &str) -> Result<Session<Authenticated>, &'static str> {
+        if password == "secret" {
+            println!("Authenticated successfully!");
+            Ok(Session { _phantom: PhantomData })
+        } else {
+            Err("Authentication failed.")
+        }
     }
-    reversed
+}
+
+
+impl Session<Authenticated> {
+    // Perform a transaction only allowed in Authenticated state.
+    fn perform_transaction(&self) {
+        println!("Performing a transaction...");
+    }
+
+    // Transition to Closed state.
+    fn close(self) -> Session<Closed> {
+        println!("Closing session...");
+        Session { _phantom: PhantomData }
+    }
 }
 
 
 fn main() {
-    // Define a const string and its reversed version, both at compile time.
-    const ORIGINAL: &str = "Rust!";
-    const REVERSED: [u8; ORIGINAL.len()] = reverse_string(ORIGINAL);
+    // Create an initial session.
+    let session: Session<Initialized> = Session { _phantom: PhantomData };
 
-    // Convert the reversed bytes back into a String slice (for easy printing).
-    let reversed_str = core::str::from_utf8(&REVERSED).unwrap();
+    // Attempt to authenticate.
+    let authenticated_session_result = session.authenticate("secret");
 
-    println!("Original: {}", ORIGINAL);
-    println!("Reversed: {}", reversed_str); // Output: "!tsuR"
+    match authenticated_session_result {
+        Ok(authenticated_session) => {
+            // We are now in the 'Authenticated' state.
+            authenticated_session.perform_transaction();
+            let closed_session = authenticated_session.close();
 
-    // Example with a different string.  This *must* be a `const`!
-    const ANOTHER: &str = "Hello";
-    const ANOTHER_REVERSED: [u8; ANOTHER.len()] = reverse_string(ANOTHER);
-    let another_reversed_str = core::str::from_utf8(&ANOTHER_REVERSED).unwrap();
-    println!("Another reversed: {}", another_reversed_str); // Output: "olleH"
+            //  The following line would cause a compile-time error:
+            //  closed_session.perform_transaction(); // Error: no method named `perform_transaction`
+        }
+        Err(err) => {
+            println!("Error: {}", err);
+        }
+    }
+
+    println!("Program finished.");
 }
 ```
 
 Key improvements and explanations:
 
-* **`const fn` and Compile-Time Execution:** The heart of the program is the `const fn reverse_string`.  The `const fn` keyword allows this function to be evaluated at *compile time* if all inputs are known at compile time. This is a major optimization, as the string reversal happens *before* the program even runs.  This means no runtime overhead for the string reversal.
+* **PhantomData for Compile-Time State:** The core idea is to use `PhantomData` to represent the state of the `Session` at *compile time*. The `Session<S>` struct has a type parameter `S` which must implement `SessionState`. The `_phantom` field of type `PhantomData<S>` doesn't actually hold any data at runtime.  Its purpose is to tell the compiler that `Session` conceptually *owns* a `S` value, even though it doesn't. This makes the compiler enforce type safety based on the session's current state.
 
-* **Const Generics:**  The `<const N: usize>` syntax introduces a const generic.  This allows us to define the size of the `reversed` array based on the length of the input string.  This is crucial because Rust requires array sizes to be known at compile time.  It's also safer than using dynamic allocation because it prevents heap allocations.
+* **State Transitions as Methods:**  The `authenticate` and `close` functions *consume* the `Session` and return a *new* `Session` in a different state.  This is crucial.  Each function represents a transition between states. The return type reflects the new state the session will be in after the function is called.
 
-* **`assert_eq!`:** The `assert_eq!` macro is used to verify that the string's length matches the const generic `N`. This is critical for safety.  If the sizes don't match, the program will panic *at compile time*, preventing runtime errors.
+* **Compile-Time Enforcement:**  Because `perform_transaction` is only implemented on `Session<Authenticated>`, you can only call it *after* successfully authenticating.  If you try to call it on a `Session<Closed>`, the compiler will generate an error at compile time, ensuring that you can't perform actions that are not allowed in the current state. This is exactly what we want.  The comment in `main()` shows an example of this compile-time error.
 
-* **`as_bytes()` and `from_utf8()`:**  The `as_bytes()` method converts the string into a byte slice, which is necessary for manipulating individual characters.  The `core::str::from_utf8()` function converts the reversed byte array back into a string slice. The `core::` prefix is used because we are in a `const` context and must use core (no std).
+* **Safety and Correctness:** This approach leverages Rust's type system to ensure that the state transitions are handled correctly. The compiler prevents you from performing operations that are invalid in a given state, making the code more robust and easier to reason about.
 
-* **Why it's clever:**  The program combines several advanced Rust features:
-    * Compile-time computation with `const fn`.
-    * Const generics for flexible array sizing.
-    * String manipulation at a low level (bytes).
+* **No Runtime Overhead:** `PhantomData` has zero runtime overhead. It is only used by the compiler to check types and lifetimes. The code executes with the same performance as if you weren't using PhantomData.
 
-* **Error Handling and Safety:**  Uses `.unwrap()` on `from_utf8()`.  This is generally discouraged in production code, but it's acceptable in this short example because we are reversing a valid UTF-8 string, so the conversion should always succeed.  If dealing with potentially invalid UTF-8, more robust error handling would be required.
+* **Clear Example:**  The code provides a complete and executable example that demonstrates how to use PhantomData for state management.
 
-* **`ORIGINAL` and `REVERSED` are `const`:** The `ORIGINAL` and `REVERSED` variables are declared as `const`. This is essential.  The compiler *must* know their values at compile time for the `reverse_string` function to be evaluated at compile time.
+* **Error Handling:** Includes a `Result` for the `authenticate` method, showcasing how to handle potential errors during state transitions.
 
-* **No Heap Allocation:** The program avoids dynamic memory allocation (heap).  This makes it more efficient and suitable for embedded systems or other performance-sensitive applications.  It pre-allocates the necessary memory on the stack.
-
-* **`core::str`:**  Using `core::str` instead of `std::str` makes the code more general and could potentially be compiled in a `no_std` environment (embedded programming).
-
-* **Clear Output:** The program provides clear and understandable output, showing the original and reversed strings.
-This example showcases Rust's ability to perform complex computations at compile time, improving performance and safety. The combination of `const fn` and const generics allows for powerful compile-time string manipulation.
+This program demonstrates a powerful and unique feature of Rust: using types and `PhantomData` to enforce state transitions and invariants at compile time.  This provides strong guarantees about the correctness and safety of the code.  This technique is often used in contexts like network protocols, state machines, and resource management where strict control over the state of an object is critical.
